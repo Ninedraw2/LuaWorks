@@ -1,0 +1,260 @@
+{
+  "logs": [
+    {
+      "id": "LOG-1768529110070",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com usuário inexistente: admin",
+      "userId": null,
+      "timestamp": "2026-01-16T02:05:10.070Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529114860",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com usuário inexistente: admin",
+      "userId": null,
+      "timestamp": "2026-01-16T02:05:14.860Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529271752",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: Novedraws",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:07:51.752Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529278173",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin Novedraws fez login",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:07:58.173Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529290853",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Auto Farmer Pro v3.2",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:10.853Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529292986",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Bot Suite Elite 2024",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:12.986Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529294989",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Performance Booster Pro",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:14.989Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529298278",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Security Shield Elite",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:18.278Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529300992",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Ultimate GUI Library",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:20.992Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529305945",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: AI Developer Assistant",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:08:25.945Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529793782",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin Novedraws fez login",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:33.782Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529801407",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: AI Developer Assistant",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:41.407Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529808266",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Ultimate GUI Library",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:48.266Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529811596",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Performance Booster Pro",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:51.596Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529813643",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Auto Farmer Pro v3.2",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:53.643Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529815769",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Bot Suite Elite 2024",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:55.769Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768529818085",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Security Shield Elite",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:16:58.085Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530731683",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Auto Farmer Pro v3.2",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:11.683Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530732896",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Bot Suite Elite 2024",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:12.896Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530736481",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Ultimate GUI Library",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:16.481Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530739060",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Security Shield Elite",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:19.060Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530740101",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Performance Booster Pro",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:20.101Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768530742778",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: AI Developer Assistant",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T02:32:22.778Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768533744974",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: Sabubu Lex",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T03:22:24.974Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768589915652",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: Pay Gorn",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T18:58:35.652Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590011053",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Sabubu Lex",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T19:00:11.053Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590015516",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Pay Gorn",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T19:00:15.516Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590031651",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com usuário inexistente: admin",
+      "userId": null,
+      "timestamp": "2026-01-16T19:00:31.651Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590034490",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com usuário inexistente: admin",
+      "userId": null,
+      "timestamp": "2026-01-16T19:00:34.490Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590046642",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com usuário inexistente: admin",
+      "userId": null,
+      "timestamp": "2026-01-16T19:00:46.642Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768590129834",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin Novedraws fez login",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-16T19:02:09.834Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768680040647",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: Teste",
+      "userId": "1768482487630",
+      "timestamp": "2026-01-17T20:00:40.647Z",
+      "ip": "127.0.0.1"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+node_modules/
+uploads/
+backups/
+secure-database.json
+.env
+*.log
+access.log
+.DS_Store
+Thumbs.db

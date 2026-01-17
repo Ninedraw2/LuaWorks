@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUA WORKS | Scripts Lua Premium para Roblox</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="nexaverse-header">
+        <div class="container">
+            <nav class="main-nav">
+                <div class="logo">
+                    <div class="logo-text">
+                        <span class="logo-primary">LUA</span>
+                        <span class="logo-secondary">WORKS</span>
+                    </div>
+                    <div class="logo-tag">Beta</div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="#products" class="nav-link">Produtos</a>
+                    <a href="#about" class="nav-link">Sobre</a>
+                    <a href="#features" class="nav-link">Recursos</a>
+                    <a href="#stats" class="nav-link">Estatísticas</a>
+                    
+                    <!-- Botões de autenticação -->
+                    <div class="auth-buttons">
+                        <button id="loginBtn" class="btn btn-secondary">
+                            <i class="fas fa-sign-in-alt"></i> Entrar
+                        </button>
+                        <button id="registerBtn" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Registrar
+                        </button>
+                        <button id="logoutBtn" class="btn btn-danger" style="display: none;">
+                            <i class="fas fa-sign-out-alt"></i> Sair
+                        </button>
+                        <div id="userMenu" class="user-menu" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">BETA</div>
+                <h1 class="hero-title">
+                    Scripts Lua <span class="gradient-text">Premium</span> para Roblox
+                </h1>
+                <p class="hero-subtitle">
+                    Sistema completo para distribuição de scripts Lua profissionais. 
+                    Marketplace em desenvolvimento ativo.
+                </p>
+                <div class="hero-cta">
+                    <a href="#products" class="btn btn-primary">
+                        <i class="fas fa-code"></i> Explorar Scripts
+                    </a>
+                    <a href="#stats" class="btn btn-secondary">
+                        <i class="fas fa-chart-line"></i> Ver Estatísticas
+                    </a>
+                </div>
+            </div>
+            
+            <div id="statsContainer" class="stats-container"></div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Sistema de Scripts Lua</h2>
+                <div class="section-divider"></div>
+            </div>
+            
+            <div class="about-content">
+                <div class="about-text">
+                    <p class="lead">
+                        A <strong>Lua Works</strong> é um marketplace em desenvolvimento para scripts Lua no Roblox. 
+                        Estamos construindo uma plataforma completa para desenvolvedores.
+                    </p>
+                    
+                    <div class="expertise-grid">
+                        <div class="expertise-item">
+                            <div class="expertise-icon">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h4>Automação</h4>
+                            <p>Sistemas de automação com anti-ban e otimização.</p>
+                        </div>
+                        
+                        <div class="expertise-item">
+                            <div class="expertise-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h4>Segurança</h4>
+                            <p>Criptografia e proteção contra detecção.</p>
+                        </div>
+                        
+                        <div class="expertise-item">
+                            <div class="expertise-icon">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <h4>Performance</h4>
+                            <p>Scripts otimizados para máximo FPS.</p>
+                        </div>
+                        
+                        <div class="expertise-item">
+                            <div class="expertise-icon">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <h4>Suporte</h4>
+                            <p>Equipe técnica disponível para suporte.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mission-statement">
+                        <h3>Em Desenvolvimento</h3>
+                        <p>
+                            Estamos construindo uma plataforma completa para distribuição de scripts Lua. 
+                            O sistema está em fase beta e sendo desenvolvido ativamente.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Características</h2>
+                <div class="section-divider"></div>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <h3>Downloads</h3>
+                    <p>Arquivos com código fonte, documentação e exemplos.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Código</h3>
+                    <p>Scripts Lua completos e funcionais.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h3>Licenças</h3>
+                    <p>Chaves de licença únicas para cada usuário.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Section -->
+    <section id="products" class="products-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Scripts Premium</h2>
+                <div class="section-divider"></div>
+                <p class="section-subtitle">Sistemas de automação com código e suporte</p>
+            </div>
+            
+            <div class="products-filters">
+                <button class="filter-btn active" data-filter="all">Todos</button>
+                <button class="filter-btn" data-filter="automation">Automação</button>
+                <button class="filter-btn" data-filter="bot">Bots</button>
+                <button class="filter-btn" data-filter="system">Sistemas</button>
+                <button class="filter-btn" data-filter="utility">Utilitários</button>
+                <button class="filter-btn" data-filter="purchased">Minhas Compras</button>
+                <button class="filter-btn" data-filter="upcoming">Em Breve</button>
+            </div>
+            
+            <div class="products-grid" id="productsGrid">
+                <!-- Produtos carregados via JavaScript -->
+                <div class="loading-products">
+                    <div class="loader"></div>
+                    <p>Carregando scripts premium...</p>
+                </div>
+            </div>
+            
+            <div id="noResults" class="no-results" style="display: none; text-align: center; padding: 40px;">
+                <i class="fas fa-search" style="font-size: 4rem; color: var(--dark-text); margin-bottom: 20px;"></i>
+                <h3>Nenhum produto encontrado</h3>
+                <p>Não encontramos produtos correspondentes ao filtro selecionado.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section id="stats" class="stats-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>Estatísticas</h2>
+                <div class="section-divider"></div>
+                <p class="section-subtitle">Sistema em desenvolvimento - Estatísticas em tempo real</p>
+            </div>
+            
+            <div class="real-stats" id="realStats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">6</div>
+                        <div class="stat-label">Scripts Disponíveis</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">100%</div>
+                        <div class="stat-label">Sistema Online</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-wrench"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">Beta</div>
+                        <div class="stat-label">Status</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Payment Modal -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-shopping-cart"></i> Finalizar Compra</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="product-summary">
+                    <h3 id="modalProductName">Nome do Produto</h3>
+                    <p id="modalProductDescription" class="product-description"></p>
+                    <div class="product-price-large" id="modalProductPrice">0.00 BTC</div>
+                    <ul id="modalProductFeatures" class="product-features-list"></ul>
+                </div>
+                
+                <div class="payment-methods">
+                    <h3><i class="fas fa-wallet"></i> Escolha sua Criptomoeda</h3>
+                    
+                    <div class="currencies-grid" id="currenciesGrid">
+                        <!-- Moedas carregadas via JavaScript -->
+                    </div>
+                    
+                    <div class="selected-wallet" id="selectedWallet">
+                        <h4><i class="fas fa-qrcode"></i> Pagamento via Cripto</h4>
+                        <div class="wallet-info">
+                            <p class="wallet-instruction">Envie o valor exato para o endereço abaixo:</p>
+                            <div class="wallet-address">
+                                <code id="walletAddress">Selecione uma moeda acima</code>
+                                <button class="copy-btn" onclick="copyWalletAddress()">
+                                    <i class="fas fa-copy"></i> Copiar
+                                </button>
+                            </div>
+                            <p id="walletNetwork" class="wallet-network"></p>
+                        </div>
+                        <div class="wallet-qr" id="walletQr">
+                            <div class="qr-placeholder">
+                                <i class="fas fa-qrcode"></i>
+                                <p>Selecione uma moeda</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="payment-instructions">
+                        <h4><i class="fas fa-info-circle"></i> Instruções de Pagamento:</h4>
+                        <ol>
+                            <li>Envie <strong>EXATAMENTE</strong> o valor mostrado acima para o endereço da carteira</li>
+                            <li>Aguarde 2-3 confirmações na blockchain (5-30 minutos)</li>
+                            <li>Após confirmações, clique em "Confirmar Pagamento"</li>
+                            <li>O download será liberado automaticamente na sua conta</li>
+                            <li>Guarde a chave de licença que será fornecida</li>
+                        </ol>
+                        <div class="payment-note">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>IMPORTANTE:</strong> Não envie valores diferentes. Transações incorretas não serão reembolsadas.
+                        </div>
+                    </div>
+                    
+                    <div class="payment-actions">
+                        <button class="btn btn-primary" id="confirmPaymentBtn">
+                            <i class="fas fa-check-circle"></i> Confirmar Pagamento
+                        </button>
+                        <button class="btn btn-secondary close-modal">
+                            <i class="fas fa-times"></i> Cancelar Compra
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="nexaverse-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-text">
+                            <span class="logo-primary">LUA</span>
+                            <span class="logo-secondary">WORKS</span>
+                        </div>
+                        <div class="logo-tag">Beta</div>
+                    </div>
+                    <p class="footer-mission">
+                        Scripts Lua premium em desenvolvimento.
+                    </p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Produtos</h4>
+                    <a href="#products?filter=automation">Automação</a>
+                    <a href="#products?filter=bot">Bots</a>
+                    <a href="#products?filter=system">Sistemas</a>
+                    <a href="#products?filter=utility">Utilitários</a>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Suporte</h4>
+                    <a href="mailto:support@luaworks.dev"><i class="fas fa-envelope"></i> Email: support@luaworks.dev</a>
+                    <a href="#"><i class="fab fa-discord"></i> Discord: Lua Works Community</a>
+                    <a href="#"><i class="fas fa-book"></i> Documentação</a>
+                    <a href="#"><i class="fas fa-question-circle"></i> FAQ</a>
+                </div>
+                
+                <div class="footer-contact">
+                    <h4>Sistema</h4>
+                    <p><i class="fas fa-shield-alt"></i> Criptografia AES-256</p>
+                    <p><i class="fas fa-lock"></i> Pagamentos Seguros</p>
+                    <p><i class="fas fa-user-shield"></i> Dados Protegidos</p>
+                    <p><i class="fas fa-wrench"></i> Em Desenvolvimento</p>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2026 Lua Works. Todos os direitos reservados.</p>
+                <p class="security-notice">
+                    <i class="fas fa-exclamation-circle"></i> Sistema em fase beta - Em desenvolvimento ativo
+                </p>
+                <div class="footer-legal">
+                    <a href="#">Termos de Serviço</a>
+                    <a href="#">Política de Privacidade</a>
+                    <a href="#">Política de Reembolso</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+    
+    <!-- Script de inicialização -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const filter = urlParams.get('filter');
+            if (filter) {
+                const filterBtn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+                if (filterBtn) {
+                    filterBtn.click();
+                }
+            }
+            
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                console.log('Token encontrado, verificando sessão...');
+            }
+        });
+    </script>
+</body>
+</html>

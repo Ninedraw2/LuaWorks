@@ -1,0 +1,37 @@
+{
+  "users": [
+    {
+      "id": "1768482487630",
+      "username": "Novedraws",
+      "email": "contapokemonminecraft18@gmail.com",
+      "password": "$2a$12$pjKQm.M37xLaeDor69isQeEX9v4d6m8Om1WwzGceSEjLpY7XEZFDy",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=Novedraws&background=00ff88&color=000&bold=true&size=256",
+        "bio": "",
+        "location": "",
+        "website": "",
+        "social": {
+          "discord": "",
+          "github": "",
+          "twitter": ""
+        }
+      },
+      "preferences": {
+        "theme": "dark",
+        "currency": "BTC",
+        "notifications": true,
+        "newsletter": true,
+        "language": "pt-BR"
+      },
+      "orders": [],
+      "downloads": [],
+      "createdAt": "2026-01-15T13:08:07.630Z",
+      "lastLogin": "2026-01-16T19:02:09.824Z",
+      "lastActive": "2026-01-16T19:02:09.824Z",
+      "isAdmin": true,
+      "isVerified": false,
+      "twoFactorEnabled": false,
+      "apiKey": "lw_cead0e2b1a54a38284b984bc0cc8b214"
+    }
+  ]
+}

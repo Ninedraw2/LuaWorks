@@ -1,0 +1,27 @@
+[
+  {
+    "id": "prod-1768680040641-jxn43c4c7",
+    "name": "Teste",
+    "description": "Exemplo",
+    "longDescription": "",
+    "price": "0.1",
+    "originalPrice": "0.1",
+    "currency": "BTC",
+    "category": "security",
+    "features": [],
+    "status": "active",
+    "featured": false,
+    "uploadDate": "2026-01-17T20:00:40.641Z",
+    "lastUpdate": "2026-01-17T20:00:40.641Z",
+    "version": "1.0.0",
+    "downloads": 0,
+    "rating": 0,
+    "tags": [],
+    "systemRequirements": {},
+    "includes": [],
+    "fileSize": "0 MB",
+    "filePath": "",
+    "developer": "Lua Works Team",
+    "changelog": []
+  }
+]

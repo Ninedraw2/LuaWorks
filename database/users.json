@@ -102,8 +102,8 @@
     {
       "id": "admin-1768693954180",
       "username": "FisherMAN1909",
-      "email": "admin@luaworks.dev",
-      "password": "$2a$12$iFTwT1T87P3xCYW9EZHk.uRqCCjtW9lf2z2D2WWPlv3t4AfSkXO4.",
+      "email": "laila.cypher19@proton.me",
+      "password": "$2a$12$nK3xSJE/fShlVooeTEGsOOeuceAMiMDZU/7G3Lod30uyD4OreeRmm",
       "profile": {
         "avatar": "https://ui-avatars.com/api/?name=FisherMAN1909&background=00ff88&color=000&bold=true&size=256",
         "bio": "Administrador principal do sistema Lua Works",
@@ -131,7 +131,7 @@
       "isVerified": true,
       "twoFactorEnabled": false,
       "apiKey": "lw_ce7b482c6b6103c1682e9fda82b0ba04",
-      "lastUpdate": "2026-01-19T21:46:35.654Z"
+      "lastUpdate": "2026-01-20T00:24:32.215Z"
     }
   ]
 }

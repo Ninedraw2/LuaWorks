@@ -959,6 +959,22 @@
       "userId": null,
       "timestamp": "2026-01-19T21:48:10.786Z",
       "ip": "::1"
+    },
+    {
+      "id": "LOG-1768868655201",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T00:24:15.201Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768868672218",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T00:24:32.218Z",
+      "ip": "127.0.0.1"
     }
   ]
 }

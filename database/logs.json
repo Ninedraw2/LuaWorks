@@ -975,6 +975,158 @@
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-20T00:24:32.218Z",
       "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768928038883",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T16:53:58.883Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768928065706",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T16:54:25.706Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768928197354",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T16:56:37.354Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768928226528",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com email inexistente: israel.bissoqui@gmail.com",
+      "userId": null,
+      "timestamp": "2026-01-20T16:57:06.528Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928235616",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com email inexistente: israel.bissoqui@gmail.com",
+      "userId": null,
+      "timestamp": "2026-01-20T16:57:15.616Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928238224",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com email inexistente: israel.bissoqui@gmail.com",
+      "userId": null,
+      "timestamp": "2026-01-20T16:57:18.224Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928252505",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com email inexistente: israel.bissoqui@gmail.com",
+      "userId": null,
+      "timestamp": "2026-01-20T16:57:32.505Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928262038",
+      "event": "LOGIN_FAILED",
+      "details": "Tentativa de login com email inexistente: israel.bissoqui@gmail.com",
+      "userId": null,
+      "timestamp": "2026-01-20T16:57:42.038Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928381478",
+      "event": "USER_REGISTERED",
+      "details": "Novo usuário registrado: israel galego",
+      "userId": "1768928381468",
+      "timestamp": "2026-01-20T16:59:41.478Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928405216",
+      "event": "LOGIN_SUCCESS",
+      "details": "Usuário fez login: israel galego",
+      "userId": "1768928381468",
+      "timestamp": "2026-01-20T17:00:05.216Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928433720",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-20T17:00:33.720Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928433787",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-20T17:00:33.787Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928492342",
+      "event": "LOGIN_SUCCESS",
+      "details": "Usuário fez login: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T17:01:32.342Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928502463",
+      "event": "FILE_DELETED",
+      "details": "Arquivo removido: /uploads/teste_1768859244343_we0r6q.zip",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T17:01:42.463Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928502466",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: aa",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T17:01:42.466Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768928693283",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T17:04:53.283Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768932284197",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T18:04:44.197Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768932441350",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T18:07:21.350Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768932484446",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T18:08:04.446Z",
+      "ip": "127.0.0.1"
     }
   ]
 }

@@ -9,7 +9,7 @@ const BACKUP_PATH = path.join(__dirname, 'backups');
 
 async function createBackup() {
     try {
-        // Criar diretório de backups se não existir
+
         await fs.mkdir(BACKUP_PATH, { recursive: true });
         
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -20,8 +20,8 @@ async function createBackup() {
         
         return new Promise((resolve, reject) => {
             output.on('close', () => {
-                console.log(`✅ Backup criado: ${backupFile}`);
-                console.log(`📊 Tamanho: ${(archive.pointer() / 1024 / 1024).toFixed(2)} MB`);
+                console.log(`Backup criado: ${backupFile}`);
+                console.log(`Tamanho: ${(archive.pointer() / 1024 / 1024).toFixed(2)} MB`);
                 resolve(backupFile);
             });
             
@@ -35,7 +35,7 @@ async function createBackup() {
         });
         
     } catch (error) {
-        console.error('❌ Erro ao criar backup:', error);
+        console.error('Erro ao criar backup:', error);
         throw error;
     }
 }
@@ -51,24 +51,24 @@ async function cleanupOldBackups(maxBackups = 10) {
             
             for (const file of filesToDelete) {
                 await fs.unlink(path.join(BACKUP_PATH, file));
-                console.log(`🗑️ Backup antigo removido: ${file}`);
+                console.log(`Backup antigo removido: ${file}`);
             }
         }
     } catch (error) {
-        console.error('❌ Erro ao limpar backups antigos:', error);
+        console.error('Erro ao limpar backups antigos:', error);
     }
 }
 
 async function main() {
-    console.log('🔄 Iniciando backup automático...');
+    console.log('Iniciando backup automático...');
     
     try {
         await createBackup();
         await cleanupOldBackups();
         
-        console.log('✅ Backup concluído com sucesso!');
+        console.log('Backup concluído com sucesso!');
     } catch (error) {
-        console.error('❌ Falha no backup:', error);
+        console.error('Falha no backup:', error);
         process.exit(1);
     }
 }

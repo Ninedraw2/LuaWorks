@@ -74,8 +74,8 @@
       "profile": {
         "avatar": "https://ui-avatars.com/api/?name=FISHNINETEEN1909&background=00ff88&color=000&bold=true&size=256",
         "bio": "Administrador principal do sistema Lua Works",
-        "location": "Brasil",
-        "website": "https://luaworks.dev",
+        "location": "USA",
+        "website": "https://lua-works.store",
         "social": {
           "discord": "",
           "github": "",
@@ -103,12 +103,12 @@
       "id": "admin-1768693954180",
       "username": "FisherMAN1909",
       "email": "laila.cypher19@proton.me",
-      "password": "$2a$12$nK3xSJE/fShlVooeTEGsOOeuceAMiMDZU/7G3Lod30uyD4OreeRmm",
+      "password": "$2a$12$VYHnqDJhSyXwunhnRsVZOupXgjfMf8gj58NcKVrYIRjNoo1F3oLjK",
       "profile": {
         "avatar": "https://ui-avatars.com/api/?name=FisherMAN1909&background=00ff88&color=000&bold=true&size=256",
         "bio": "Administrador principal do sistema Lua Works",
-        "location": "Brasil",
-        "website": "https://luaworks.dev",
+        "location": "USA",
+        "website": "https://lua-works.store",
         "social": {
           "discord": "",
           "github": "",
@@ -125,13 +125,46 @@
       "orders": [],
       "downloads": [],
       "createdAt": "2026-01-17T23:52:34.180Z",
-      "lastLogin": "2026-01-18T00:05:52.306Z",
-      "lastActive": "2026-01-18T00:05:52.306Z",
+      "lastLogin": "2026-01-20T17:01:32.340Z",
+      "lastActive": "2026-01-20T17:01:32.340Z",
       "isAdmin": true,
       "isVerified": true,
       "twoFactorEnabled": false,
       "apiKey": "lw_ce7b482c6b6103c1682e9fda82b0ba04",
-      "lastUpdate": "2026-01-20T00:24:32.215Z"
+      "lastUpdate": "2026-01-20T18:08:04.435Z"
+    },
+    {
+      "id": "1768928381468",
+      "username": "israel galego",
+      "email": "israel.bissoqui@gmail.com",
+      "password": "$2a$12$gYZ95ubU3vS5VEB3zpu03efOVDg4wjyQlhw8NhI4IjVi8oVWkbhB.",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=israel%20galego&background=00ff88&color=000&bold=true&size=256",
+        "bio": "",
+        "location": "",
+        "website": "",
+        "social": {
+          "discord": "",
+          "github": "",
+          "twitter": ""
+        }
+      },
+      "preferences": {
+        "theme": "dark",
+        "currency": "BTC",
+        "notifications": true,
+        "newsletter": true,
+        "language": "pt-BR"
+      },
+      "orders": [],
+      "downloads": [],
+      "createdAt": "2026-01-20T16:59:41.468Z",
+      "lastLogin": "2026-01-20T17:00:05.213Z",
+      "lastActive": "2026-01-20T17:00:05.213Z",
+      "isAdmin": false,
+      "isVerified": false,
+      "twoFactorEnabled": false,
+      "apiKey": "lw_0534e69201750ce35c2715fcd510af5e"
     }
   ]
 }

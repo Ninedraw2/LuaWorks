@@ -790,7 +790,7 @@ function showPaymentSuccess(paymentData) {
         receipt += `IMPORTANTE:\n`;
         receipt += `• Guarde as chaves de licença\n`;
         receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
-        receipt += `• Suporte via Discord: discord.gg/luaworks\n\n`;
+        receipt += `• Suporte via Discord: discord.gg/8VPDmnKpQH\n\n`;
         receipt += `Obrigado por comprar na Lua Works!`;
         alert(receipt);
         renderProducts();
@@ -1345,7 +1345,7 @@ function viewPurchaseDetails(purchaseId) {
     details += `Total: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
     details += `Para suporte, entre em contato:\n`;
     details += `Email: support@luaworks.dev\n`;
-    details += `Discord: discord.gg/luaworks`;
+    details += `Discord: https://discord.gg/8VPDmnKpQH`;
     alert(details);
 }
 

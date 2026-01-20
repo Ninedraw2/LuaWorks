@@ -1,4 +1,4 @@
-const express = require('express');
+    const express = require('express');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
@@ -39,7 +39,7 @@ const upload = multer({
     storage: storage,
     limits: { fileSize: 100 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['.lua', '.txt', '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md'];
+        const allowedTypes = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md'];
         const extname = path.extname(file.originalname).toLowerCase();
         if (allowedTypes.includes(extname)) {
             cb(null, true);
@@ -156,7 +156,7 @@ async function syncAdminUser() {
                     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(ADMIN_USERNAME)}&background=00ff88&color=000&bold=true&size=256`,
                     bio: 'Administrador principal do sistema Lua Works',
                     location: 'Brasil',
-                    website: 'https://luaworks.dev',
+                    website: 'https://lua-works.store',
                     social: {
                         discord: '',
                         github: '',
@@ -1262,18 +1262,14 @@ async function startServer() {
 
         await syncAdminUser();
 
-        console.log(`
-
-        🚀 Servidor Lua Works iniciado!
-
-        `);
+        console.log(`Servidor Lua Works iniciado com sucesso.`);
 
         app.listen(PORT, () => {
-            console.log(`✅ Servidor rodando na porta ${PORT}`);
+            console.log(`Servidor rodando na porta ${PORT}`);
         });
 
     } catch (error) {
-        console.error('❌ Erro ao iniciar servidor:', error);
+        console.error('Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 }

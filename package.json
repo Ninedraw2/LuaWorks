@@ -2,10 +2,10 @@
   "name": "lua-works",
   "version": "2.0.0",
   "description": "Lua Works - Scripts Lua Premium Reais para Roblox",
-  "main": "server-ultra-seguro.js",
+  "main": "server-luaworks.js",
   "scripts": {
-    "start": "server-ultra-seguro.js",
-    "dev": "nodemon server-ultra-seguro.js",
+    "start": "server-luaworks.js",
+    "dev": "nodemon server-luaworks.js",
     "setup": "npm install",
     "backup": "node backup.js"
   },

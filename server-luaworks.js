@@ -1,4 +1,4 @@
-    const express = require('express');
+const express = require('express');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
@@ -39,7 +39,7 @@ const upload = multer({
     storage: storage,
     limits: { fileSize: 100 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md'];
+        const allowedTypes = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md', '.lua'];
         const extname = path.extname(file.originalname).toLowerCase();
         if (allowedTypes.includes(extname)) {
             cb(null, true);
@@ -81,7 +81,7 @@ async function generateRealStats() {
         activeUsers: 0,
         totalOrders: 0,
         totalRevenue: '0',
-        popularCurrency: 'BTC',
+        popularCurrency: 'USD',
         topProduct: '',
         projectsDelivered: 0,
         clientRetention: 0,
@@ -165,7 +165,7 @@ async function syncAdminUser() {
                 },
                 preferences: {
                     theme: 'dark',
-                    currency: 'BTC',
+                    currency: 'USD',
                     notifications: true,
                     newsletter: false,
                     language: 'pt-BR'
@@ -208,6 +208,26 @@ async function syncAdminUser() {
         return false;
     }
 }
+
+app.get('/api/crypto-prices', async (req, res) => {
+    try {
+        const prices = {
+            BTC: 45000,
+            ETH: 2500,
+            USDT: 1,
+            XRP: 0.5,
+            BNB: 300,
+            SOL: 100,
+            LTC: 75,
+            ADA: 0.45
+        };
+        
+        res.json(prices);
+    } catch (error) {
+        console.error('Erro ao obter preços de criptomoedas:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
 
 app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), async (req, res) => {
     try {
@@ -477,6 +497,84 @@ app.get('/api/currencies', (req, res) => {
     res.json(currencies);
 });
 
+app.get('/api/payment-info/:currency', (req, res) => {
+    const { currency } = req.params;
+    const currencyInfo = {
+        BTC: {
+            name: 'Bitcoin',
+            symbol: 'BTC',
+            address: 'bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w',
+            network: 'Bitcoin Mainnet',
+            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=bitcoin:bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w'
+        },
+        ETH: {
+            name: 'Ethereum',
+            symbol: 'ETH',
+            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
+            network: 'Ethereum Mainnet',
+            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ethereum:0xd75245E5807bBdE2f916fd48e537a78220a7713D'
+        },
+        USDT: {
+            name: 'Tether',
+            symbol: 'USDT',
+            address: 'TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa',
+            network: 'TRC20 (Tron)',
+            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=tron:TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa'
+        }
+    };
+    
+    const info = currencyInfo[currency] || currencyInfo.BTC;
+    res.json(info);
+});
+
+app.post('/api/calculate-crypto-price', async (req, res) => {
+    try {
+        const { usdAmount, cryptoCurrency } = req.body;
+        
+        if (!usdAmount || !cryptoCurrency) {
+            return res.status(400).json({ error: 'Dados incompletos' });
+        }
+        
+        const usd = parseFloat(usdAmount);
+        if (isNaN(usd) || usd <= 0) {
+            return res.status(400).json({ error: 'Valor em USD inválido' });
+        }
+        
+        const cryptoPrices = {
+            BTC: 45000,
+            ETH: 2500,
+            USDT: 1,
+            XRP: 0.5,
+            BNB: 300,
+            SOL: 100,
+            LTC: 75,
+            ADA: 0.45
+        };
+        
+        const price = cryptoPrices[cryptoCurrency];
+        if (!price) {
+            return res.status(400).json({ error: 'Criptomoeda não suportada' });
+        }
+        
+        const cryptoAmount = usd / price;
+        
+        res.json({
+            usdAmount: usd,
+            cryptoCurrency,
+            cryptoAmount: cryptoAmount,
+            exchangeRate: price,
+            formatted: {
+                usd: `$${usd.toFixed(2)}`,
+                crypto: `${cryptoAmount.toFixed(8)} ${cryptoCurrency}`
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao calcular preço:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -639,7 +737,7 @@ app.post('/api/admin/products', authenticateToken, async (req, res) => {
             longDescription: productData.longDescription || '',
             price: productData.price,
             originalPrice: productData.originalPrice || productData.price,
-            currency: productData.currency || 'BTC',
+            currency: productData.currency || 'USD',
             category: productData.category || 'automation',
             features: productData.features ? (Array.isArray(productData.features) ? productData.features : productData.features.split(',').map(f => f.trim())) : [],
             status: productData.isUpcoming ? 'upcoming' : 'active',
@@ -876,7 +974,7 @@ app.post('/api/auth/register', async (req, res) => {
             },
             preferences: {
                 theme: 'dark',
-                currency: 'BTC',
+                currency: 'USD',
                 notifications: true,
                 newsletter: true,
                 language: 'pt-BR'

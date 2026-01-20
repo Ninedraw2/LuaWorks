@@ -709,34 +709,31 @@
                                 <option value="automation">Automação</option>
                                 <option value="ui">Interface</option>
                                 <option value="hack">Hack</option>
+                                <option value="system">Sistema</option>
+                                <option value="bot">Bot</option>
+                                <option value="tool">Ferramenta</option>
+                                <option value="utility">Utilitário</option>
                             </select>
                         </div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="form-group">
-                                <label>Preço *</label>
-                                <input type="number" id="productPrice" class="form-control" required step="0.001" min="0.001" placeholder="0.05">
+                        <div class="form-group">
+                            <label>Preço em Dólar (USD) *</label>
+                            <div class="d-flex align-center gap-10">
+                                <input type="number" id="productPriceUSD" class="form-control" required step="0.01" min="0.01" placeholder="10.00" style="flex: 1;">
+                                <div style="color: #00ff88; font-weight: bold; white-space: nowrap;">USD</div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label>Moeda *</label>
-                                <select id="productCurrency" class="form-control" required>
-                                    <option value="BTC">Bitcoin (BTC)</option>
-                                    <option value="ETH">Ethereum (ETH)</option>
-                                    <option value="USDT">Tether (USDT)</option>
-                                    <option value="XRP">XRP</option>
-                                    <option value="BNB">BNB</option>
-                                    <option value="SOL">Solana (SOL)</option>
-                                    <option value="LTC">Litecoin (LTC)</option>
-                                    <option value="ADA">Cardano (ADA)</option>
-                                </select>
+                            <div style="margin-top: 8px; padding: 10px; background: rgba(0, 255, 136, 0.05); border-radius: 5px; border-left: 3px solid #00ff88;">
+                                <div style="font-size: 12px; color: #88aaff; margin-bottom: 5px;">Valores equivalentes em criptomoedas:</div>
+                                <div id="cryptoEquivalents" style="font-size: 13px; color: #ffffff;">
+                                    Carregando valores...
+                                </div>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label>Arquivo do Produto *</label>
                             <div class="file-input-container">
-                                <input type="file" id="productFile" class="file-input" accept=".zip,.rar,.7z,.tar,.gz,.bz2">
+                                <input type="file" id="productFile" class="file-input" accept=".zip,.rar,.7z,.tar,.gz,.bz2,.js,.json,.py,.xml,.html,.css,.md,.lua">
                                 <label for="productFile" class="file-input-label" id="fileInputLabel">
                                     <div class="file-input-content">
                                         <i class="fas fa-cloud-upload-alt file-input-icon"></i>
@@ -744,7 +741,7 @@
                                             <span id="fileInputText">Clique para fazer upload ou arraste o arquivo</span>
                                         </div>
                                         <div class="file-input-hint">
-                                            Formatos permitidos: .zip, .rar, .7z, .tar, .gz, .bz2
+                                            Formatos permitidos: .zip, .rar, .7z, .tar, .gz, .bz2, .js, .json, .py, .lua, etc.
                                         </div>
                                         <div class="file-input-hint">
                                             Tamanho máximo: 100MB
@@ -849,11 +846,21 @@
     <script>
         const API_BASE = '/api/admin';
         const MAX_FILE_SIZE = 100 * 1024 * 1024;
-        const ALLOWED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'];
+        const ALLOWED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md', '.lua'];
         
         let currentUser = null;
         let allProducts = [];
         let currentFile = null;
+        let cryptoPrices = {
+            BTC: 45000,
+            ETH: 2500,
+            USDT: 1,
+            XRP: 0.5,
+            BNB: 300,
+            SOL: 100,
+            LTC: 75,
+            ADA: 0.45
+        };
         
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('Dashboard inicializando...');
@@ -866,6 +873,7 @@
             updateUserInfo();
             updateLastActivity();
             setupEventListeners();
+            await loadCryptoPrices();
             await loadInitialData();
             
             showMessage('Bem-vindo ao dashboard administrativo!', 'success');
@@ -927,6 +935,52 @@
             
             updateTime();
             setInterval(updateTime, 60000);
+        }
+        
+        async function loadCryptoPrices() {
+            try {
+                const response = await fetch('/api/crypto-prices');
+                if (response.ok) {
+                    const prices = await response.json();
+                    cryptoPrices = prices;
+                }
+            } catch (error) {
+                console.warn('Não foi possível carregar preços de criptomoedas. Usando valores padrão.');
+            }
+        }
+        
+        function updateCryptoEquivalents(usdPrice) {
+            const equivalentsDiv = document.getElementById('cryptoEquivalents');
+            if (!equivalentsDiv) return;
+            
+            const usd = parseFloat(usdPrice) || 0;
+            if (usd <= 0) {
+                equivalentsDiv.innerHTML = '<span style="color: #88aaff;">Digite um valor em USD para ver os equivalentes</span>';
+                return;
+            }
+            
+            const equivalents = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 5px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #88aaff;">BTC:</span>
+                        <span style="color: #00ff88; font-weight: bold;">${(usd / cryptoPrices.BTC).toFixed(8)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #88aaff;">ETH:</span>
+                        <span style="color: #00ff88; font-weight: bold;">${(usd / cryptoPrices.ETH).toFixed(6)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #88aaff;">SOL:</span>
+                        <span style="color: #00ff88; font-weight: bold;">${(usd / cryptoPrices.SOL).toFixed(4)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #88aaff;">USDT:</span>
+                        <span style="color: #00ff88; font-weight: bold;">${usd.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+            
+            equivalentsDiv.innerHTML = equivalents;
         }
         
         function logout() {
@@ -1230,8 +1284,8 @@
                     <div class="stat-label">Total de Pedidos</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${stats.totalRevenue ? stats.totalRevenue.toFixed(3) : '0'}</div>
-                    <div class="stat-label">Receita Total</div>
+                    <div class="stat-number">${stats.totalRevenue ? '$' + stats.totalRevenue.toFixed(2) : '$0.00'}</div>
+                    <div class="stat-label">Receita Total (USD)</div>
                 </div>
             `;
         }
@@ -1283,7 +1337,8 @@
                         <tr>
                             <th>Nome</th>
                             <th>Categoria</th>
-                            <th>Preço</th>
+                            <th>Preço (USD)</th>
+                            <th>Equivalente Crypto</th>
                             <th>Downloads</th>
                             <th>Arquivo</th>
                             <th>Status</th>
@@ -1294,6 +1349,10 @@
             `;
             
             activeProducts.forEach(product => {
+                const usdPrice = parseFloat(product.price) || 0;
+                const btcEquivalent = usdPrice / cryptoPrices.BTC;
+                const ethEquivalent = usdPrice / cryptoPrices.ETH;
+                
                 html += `
                     <tr>
                         <td>
@@ -1303,7 +1362,13 @@
                             </div>
                         </td>
                         <td>${escapeHtml(getCategoryName(product.category))}</td>
-                        <td style="font-weight: 600; color: #00ff88;">${product.price} ${product.currency}</td>
+                        <td style="font-weight: 600; color: #00ff88;">$${usdPrice.toFixed(2)}</td>
+                        <td>
+                            <div style="font-size: 12px; color: #88aaff;">
+                                <div>BTC: ${btcEquivalent.toFixed(8)}</div>
+                                <div>ETH: ${ethEquivalent.toFixed(6)}</div>
+                            </div>
+                        </td>
                         <td>${product.downloads || 0}</td>
                         <td>
                             ${product.fileName ? 
@@ -1360,7 +1425,8 @@
                         <tr>
                             <th>Nome</th>
                             <th>Categoria</th>
-                            <th>Preço</th>
+                            <th>Preço (USD)</th>
+                            <th>Equivalente Crypto</th>
                             <th>Data</th>
                             <th>Arquivo</th>
                             <th>Status</th>
@@ -1371,6 +1437,10 @@
             `;
             
             upcomingProducts.forEach(product => {
+                const usdPrice = parseFloat(product.price) || 0;
+                const btcEquivalent = usdPrice / cryptoPrices.BTC;
+                const ethEquivalent = usdPrice / cryptoPrices.ETH;
+                
                 html += `
                     <tr>
                         <td>
@@ -1380,7 +1450,13 @@
                             </div>
                         </td>
                         <td>${escapeHtml(getCategoryName(product.category))}</td>
-                        <td style="font-weight: 600; color: #ffaa00;">${product.price} ${product.currency}</td>
+                        <td style="font-weight: 600; color: #ffaa00;">$${usdPrice.toFixed(2)}</td>
+                        <td>
+                            <div style="font-size: 12px; color: #88aaff;">
+                                <div>BTC: ${btcEquivalent.toFixed(8)}</div>
+                                <div>ETH: ${ethEquivalent.toFixed(6)}</div>
+                            </div>
+                        </td>
                         <td>${formatDate(product.uploadDate)}</td>
                         <td>
                             ${product.fileName ? 
@@ -1495,8 +1571,8 @@
                 name: document.getElementById('productName').value.trim(),
                 description: document.getElementById('productDescription').value.trim(),
                 category: document.getElementById('productCategory').value,
-                price: document.getElementById('productPrice').value,
-                currency: document.getElementById('productCurrency').value,
+                price: document.getElementById('productPriceUSD').value,
+                currency: 'USD',
                 isUpcoming: document.getElementById('isUpcoming').checked,
                 featured: document.getElementById('isFeatured').checked
             };
@@ -1581,8 +1657,9 @@
             document.getElementById('productName').value = product.name;
             document.getElementById('productDescription').value = product.description;
             document.getElementById('productCategory').value = product.category;
-            document.getElementById('productPrice').value = product.price;
-            document.getElementById('productCurrency').value = product.currency;
+            document.getElementById('productPriceUSD').value = product.price;
+            updateCryptoEquivalents(product.price);
+            
             document.getElementById('isUpcoming').checked = product.status === 'upcoming';
             document.getElementById('isFeatured').checked = product.featured;
             
@@ -1633,8 +1710,8 @@
                 name: document.getElementById('productName').value.trim(),
                 description: document.getElementById('productDescription').value.trim(),
                 category: document.getElementById('productCategory').value,
-                price: document.getElementById('productPrice').value,
-                currency: document.getElementById('productCurrency').value,
+                price: document.getElementById('productPriceUSD').value,
+                currency: 'USD',
                 status: document.getElementById('isUpcoming').checked ? 'upcoming' : 'active',
                 featured: document.getElementById('isFeatured').checked
             };
@@ -1794,6 +1871,10 @@
                 document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
                 const form = document.getElementById('addProductForm');
                 form.onsubmit = addProduct;
+                
+                const usdInput = document.getElementById('productPriceUSD');
+                usdInput.addEventListener('input', () => updateCryptoEquivalents(usdInput.value));
+                updateCryptoEquivalents(usdInput.value);
             }
             
             if (tabName === 'security') {
@@ -1827,6 +1908,11 @@
                 searchInput.addEventListener('input', function() {
                     filterProducts(this.value.toLowerCase());
                 });
+            }
+            
+            const usdInput = document.getElementById('productPriceUSD');
+            if (usdInput) {
+                usdInput.addEventListener('input', () => updateCryptoEquivalents(usdInput.value));
             }
             
             setupFileUpload();

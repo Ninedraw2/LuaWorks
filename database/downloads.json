@@ -154,6 +154,13 @@
       "downloadedAt": "2026-01-20T17:00:33.785Z",
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+    },
+    {
+      "productId": "prod-1768937763476-md3981xtj",
+      "productName": "teste",
+      "userId": "admin-1768693954180",
+      "downloadedAt": "2026-01-20T19:36:25.580Z",
+      "ip": "::1"
     }
   ]
 }

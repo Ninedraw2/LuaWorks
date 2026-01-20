@@ -488,7 +488,7 @@ function updateStatsDisplay() {
                     <div class="stat-label">Total</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">Beta</div>
+                    <div class="stat-number">V1</div>
                     <div class="stat-label">Status</div>
                 </div>
             </div>

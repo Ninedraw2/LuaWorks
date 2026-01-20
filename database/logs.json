@@ -1127,6 +1127,86 @@
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-20T18:08:04.446Z",
       "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768932515729",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T18:08:35.729Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768937721381",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:35:21.381Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768937763401",
+      "event": "FILE_UPLOADED",
+      "details": "Arquivo enviado: teste.zip (375 bytes)",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:36:03.401Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768937763491",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:36:03.491Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768937785586",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado (autenticado): teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:36:25.586Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768937801157",
+      "event": "FILE_DELETED",
+      "details": "Arquivo removido: /uploads/teste_1768937763390_1m62zf.zip",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:36:41.157Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768937801163",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:36:41.163Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768938341591",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:45:41.591Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768938408296",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:46:48.296Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768938452869",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-20T19:47:32.869Z",
+      "ip": "127.0.0.1"
     }
   ]
 }

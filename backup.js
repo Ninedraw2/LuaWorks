@@ -1,4 +1,4 @@
-// backup.js - Script de backup automático
+
 const fs = require('fs').promises;
 const path = require('path');
 const { exec } = require('child_process');
@@ -73,7 +73,7 @@ async function main() {
     }
 }
 
-// Executar se chamado diretamente
+
 if (require.main === module) {
     main();
 }

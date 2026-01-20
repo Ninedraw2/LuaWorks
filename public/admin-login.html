@@ -226,16 +226,16 @@
         window.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('lua_works_token');
             if (token) {
-                // Verificar se o token é válido
+
                 fetch('/api/verify-token', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
                 .then(response => {
                     if (response.ok) {
-                        // Token válido, redirecionar para dashboard
+
                         window.location.href = '/admin/dashboard';
                     } else {
-                        // Token inválido, remover
+
                         localStorage.removeItem('lua_works_token');
                         localStorage.removeItem('lua_works_user');
                     }
@@ -253,17 +253,13 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            // Limpar mensagens
             errorMessage.style.display = 'none';
             successMessage.style.display = 'none';
             
-            // Validação básica
             if (!username || !password) {
                 showError('Por favor, preencha todos os campos');
                 return;
             }
-            
-            // Mostrar loading
             btnText.textContent = 'PROCESSANDO...';
             loadingSpinner.style.display = 'block';
             loginBtn.disabled = true;
@@ -280,30 +276,26 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // Salvar token e dados do usuário
                     localStorage.setItem('lua_works_token', data.token);
                     localStorage.setItem('lua_works_user', JSON.stringify(data.user));
                     
-                    // Mostrar mensagem de sucesso
                     showSuccess('Login realizado com sucesso! Redirecionando...');
                     
-                    // Redirecionar após 1 segundo
                     setTimeout(() => {
                         window.location.href = '/admin/dashboard';
                     }, 1000);
                     
                 } else {
-                    // Mostrar erro
+
                     showError(data.error || 'Credenciais inválidas. Verifique seu usuário e senha.');
                     
-                    // Limpar senha
+
                     document.getElementById('password').value = '';
                 }
             } catch (error) {
                 console.error('Erro no login:', error);
                 showError('Erro de conexão. Verifique sua internet e tente novamente.');
             } finally {
-                // Restaurar botão
                 btnText.textContent = 'ACESSAR SISTEMA';
                 loadingSpinner.style.display = 'none';
                 loginBtn.disabled = false;
@@ -314,7 +306,6 @@
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
             
-            // Auto-remover após 5 segundos
             setTimeout(() => {
                 errorMessage.style.display = 'none';
             }, 5000);
@@ -325,7 +316,6 @@
             successMessage.style.display = 'block';
         }
         
-        // Adicionar estilo para o spinner
         const style = document.createElement('style');
         style.textContent = `
             @keyframes spin {
@@ -335,7 +325,6 @@
         `;
         document.head.appendChild(style);
         
-        // Limpar formulário ao recarregar
         window.addEventListener('pageshow', (e) => {
             if (e.persisted) {
                 loginForm.reset();
@@ -343,8 +332,7 @@
                 successMessage.style.display = 'none';
             }
         });
-        
-        // Focar no campo de usuário ao carregar
+    
         window.addEventListener('load', () => {
             document.getElementById('username').focus();
         });

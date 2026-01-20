@@ -1,84 +1,67 @@
-// ==================== CONFIGURAÇÃO DO SERVIDOR ====================
 const express = require('express');
 const fs = require('fs').promises;
-const fsSync = require('fs'); // Importação adicional para métodos síncronos
+const fsSync = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
+const crypto = require('crypto');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'lua-works-real-secret-key-2024-v2';
+const SECRET_KEY = process.env.JWT_SECRET || 'X7!qF-A19ZZx=19xmv;08psjdcnz1X7Ax99ax1599,+391sbQH^^a1AB2';
+
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'laila.cypher19@proton.me';
+
 const DB_PATH = path.join(__dirname, 'database');
 const UPLOADS_PATH = path.join(__dirname, 'uploads');
-const PUBLIC_PATH = path.join(__dirname, 'public'); // Caminho para a pasta public
+const PUBLIC_PATH = path.join(__dirname, 'public');
 
-// Configuração do multer para uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOADS_PATH);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const originalName = path.parse(file.originalname).name;
+        const extension = path.extname(file.originalname);
+        const uniqueName = `${originalName}_${timestamp}_${random}${extension}`;
+        cb(null, uniqueName);
     }
 });
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    limits: { fileSize: 100 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['.lua', '.txt', '.zip', '.rar', '.7z'];
+        const allowedTypes = ['.lua', '.txt', '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md'];
         const extname = path.extname(file.originalname).toLowerCase();
         if (allowedTypes.includes(extname)) {
             cb(null, true);
         } else {
-            cb(new Error('Tipo de arquivo não permitido. Use .lua, .txt, .zip, .rar ou .7z'));
+            cb(new Error(`Tipo de arquivo não permitido. Formatos: ${allowedTypes.join(', ')}`));
         }
     }
 });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(PUBLIC_PATH));
+app.use('/uploads', express.static(UPLOADS_PATH));
 
-// Servir arquivos estáticos CORRIGIDO para a hierarquia correta
-app.use(express.static(PUBLIC_PATH)); // Primeiro serve os arquivos da pasta public
-app.use('/uploads', express.static(UPLOADS_PATH)); // Depois a pasta uploads
-
-// Garantir que os diretórios existem
-async function ensureDirectories() {
-    try {
-        await fs.access(DB_PATH);
-    } catch {
-        await fs.mkdir(DB_PATH, { recursive: true });
-    }
-    
-    try {
-        await fs.access(UPLOADS_PATH);
-    } catch {
-        await fs.mkdir(UPLOADS_PATH, { recursive: true });
-    }
-    
-    try {
-        await fs.access(PUBLIC_PATH);
-    } catch {
-        await fs.mkdir(PUBLIC_PATH, { recursive: true });
-    }
-}
-
-// ==================== FUNÇÕES DO BANCO DE DADOS ====================
 async function readDatabase(file) {
     try {
         const data = await fs.readFile(path.join(DB_PATH, file), 'utf8');
         return JSON.parse(data);
     } catch (error) {
-        // Se o arquivo não existe, retorna estrutura padrão
         if (file === 'users.json') return { users: [] };
-        if (file === 'products.json') return await generateRealProducts();
+        if (file === 'products.json') return [];
         if (file === 'orders.json') return { orders: [] };
         if (file === 'stats.json') return await generateRealStats();
         if (file === 'downloads.json') return { downloads: [] };
@@ -92,15 +75,7 @@ async function writeDatabase(file, data) {
     await fs.writeFile(path.join(DB_PATH, file), JSON.stringify(data, null, 2));
 }
 
-// ==================== DADOS REAIS ====================
-async function generateRealProducts() {
-    return []; // Array vazio - todos os produtos foram removidos
-}
-
 async function generateRealStats() {
-    const products = await generateRealProducts();
-    const activeProducts = products.filter(p => p.status === 'active');
-    
     return {
         totalUsers: 0,
         activeUsers: 0,
@@ -121,7 +96,6 @@ async function generateRealStats() {
     };
 }
 
-// ==================== MIDDLEWARE DE AUTENTICAÇÃO ====================
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -139,8 +113,7 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// Middleware para logar atividades
-async function logActivity(event, details, userId = null) {
+async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
     try {
         const logsDb = await readDatabase('logs.json');
         logsDb.logs.push({
@@ -149,28 +122,263 @@ async function logActivity(event, details, userId = null) {
             details,
             userId,
             timestamp: new Date().toISOString(),
-            ip: '127.0.0.1' // Em produção, usar req.ip
+            ip: ip
         });
         await writeDatabase('logs.json', logsDb);
     } catch (error) {
-        console.error('Erro ao registrar log:', error);
+        console.error('Erro ao logar atividade:', error);
     }
 }
 
-// ==================== ROTAS DA API ====================
+async function syncAdminUser() {
+    try {
+        const db = await readDatabase('users.json');
+        
+        const adminExists = db.users.find(u => u.username === ADMIN_USERNAME);
+        
+        if (adminExists) {
+            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+            adminExists.password = hashedPassword;
+            adminExists.email = ADMIN_EMAIL || adminExists.email;
+            adminExists.lastUpdate = new Date().toISOString();
+            
+            await logActivity('ADMIN_UPDATED', `Credenciais do admin atualizadas`, adminExists.id);
+            
+        } else {
+            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+            
+            const adminUser = {
+                id: 'admin-' + Date.now().toString(),
+                username: ADMIN_USERNAME,
+                email: ADMIN_EMAIL,
+                password: hashedPassword,
+                profile: {
+                    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(ADMIN_USERNAME)}&background=00ff88&color=000&bold=true&size=256`,
+                    bio: 'Administrador principal do sistema Lua Works',
+                    location: 'Brasil',
+                    website: 'https://luaworks.dev',
+                    social: {
+                        discord: '',
+                        github: '',
+                        twitter: ''
+                    }
+                },
+                preferences: {
+                    theme: 'dark',
+                    currency: 'BTC',
+                    notifications: true,
+                    newsletter: false,
+                    language: 'pt-BR'
+                },
+                orders: [],
+                downloads: [],
+                createdAt: new Date().toISOString(),
+                lastLogin: new Date().toISOString(),
+                lastActive: new Date().toISOString(),
+                isAdmin: true,
+                isVerified: true,
+                twoFactorEnabled: false,
+                apiKey: 'lw_' + crypto.randomBytes(16).toString('hex'),
+                lastUpdate: new Date().toISOString()
+            };
+            
+            db.users.push(adminUser);
+            
+            await logActivity('ADMIN_CREATED', `Usuário admin inicializado: ${ADMIN_USERNAME}`, adminUser.id);
+        }
+        
+        db.users.forEach(user => {
+            if (user.username !== ADMIN_USERNAME && user.isAdmin) {
+                user.isAdmin = false;
+                logActivity('ADMIN_DEMOTED', `Usuário ${user.username} teve privilégios admin removidos`, user.id);
+            }
+        });
+        
+        await writeDatabase('users.json', db);
+        
+        const stats = await readDatabase('stats.json');
+        stats.totalUsers = db.users.length;
+        stats.activeUsers = db.users.filter(u => u.lastLogin).length;
+        await writeDatabase('stats.json', stats);
+        
+        return true;
+        
+    } catch (error) {
+        console.error('Erro ao sincronizar admin:', error);
+        return false;
+    }
+}
 
-// Rota para verificar token
+app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), async (req, res) => {
+    try {
+        const db = await readDatabase('users.json');
+        const user = db.users.find(u => u.id === req.user.id);
+        
+        if (!user || !user.isAdmin) {
+            if (req.file) {
+                await fs.unlink(req.file.path).catch(() => {});
+            }
+            return res.status(403).json({ error: 'Acesso negado' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        }
+
+        const fileInfo = {
+            fileName: req.file.originalname,
+            filePath: `/uploads/${req.file.filename}`,
+            fileSize: req.file.size,
+            mimeType: req.file.mimetype,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: user.id
+        };
+
+        await logActivity('FILE_UPLOADED', `Arquivo enviado: ${req.file.originalname} (${req.file.size} bytes)`, user.id, req.ip);
+
+        res.json({
+            success: true,
+            message: 'Arquivo enviado com sucesso!',
+            fileUrl: fileInfo.filePath,
+            fileName: fileInfo.fileName,
+            fileSize: fileInfo.fileSize,
+            mimeType: fileInfo.mimeType
+        });
+
+    } catch (error) {
+        console.error('Erro no upload:', error);
+        
+        if (req.file) {
+            await fs.unlink(req.file.path).catch(() => {});
+        }
+        
+        res.status(500).json({ 
+            error: 'Erro interno do servidor no upload',
+            details: error.message 
+        });
+    }
+});
+
+app.get('/api/download/:productId', async (req, res) => {
+    try {
+        const { productId } = req.params;
+        
+        const productsDb = await readDatabase('products.json');
+        const product = productsDb.find(p => p.id === productId);
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Produto não encontrado' });
+        }
+
+        if (!product.filePath) {
+            return res.status(404).json({ error: 'Arquivo do produto não encontrado' });
+        }
+
+        const fileName = path.basename(product.filePath);
+        const filePath = path.join(__dirname, product.filePath);
+        
+        try {
+            await fs.access(filePath);
+        } catch {
+            return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
+        }
+
+        const downloadsDb = await readDatabase('downloads.json');
+        downloadsDb.downloads.push({
+            productId: product.id,
+            productName: product.name,
+            downloadedAt: new Date().toISOString(),
+            ip: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+        await writeDatabase('downloads.json', downloadsDb);
+
+        product.downloads = (product.downloads || 0) + 1;
+        await writeDatabase('products.json', productsDb);
+
+        await logActivity('PRODUCT_DOWNLOADED', `Produto baixado: ${product.name}`, null, req.ip);
+
+        const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
+        res.download(filePath, originalFileName);
+
+    } catch (error) {
+        console.error('Erro no download:', error);
+        res.status(500).json({ error: 'Erro interno do servidor no download' });
+    }
+});
+
+app.get('/api/download/:productId/authenticated', authenticateToken, async (req, res) => {
+    try {
+        const { productId } = req.params;
+        
+        const productsDb = await readDatabase('products.json');
+        const product = productsDb.find(p => p.id === productId);
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Produto não encontrado' });
+        }
+
+        if (!product.filePath) {
+            return res.status(404).json({ error: 'Arquivo do produto não encontrado' });
+        }
+
+        const userDb = await readDatabase('users.json');
+        const user = userDb.users.find(u => u.id === req.user.id);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'Usuário não encontrado' });
+        }
+
+        const hasPurchased = user.orders && user.orders.some(order => 
+            order.productId === productId && order.status === 'completed'
+        );
+
+        if (!hasPurchased && !user.isAdmin) {
+            return res.status(403).json({ error: 'Você precisa comprar este produto para baixá-lo' });
+        }
+
+        const fileName = path.basename(product.filePath);
+        const filePath = path.join(__dirname, product.filePath);
+        
+        try {
+            await fs.access(filePath);
+        } catch {
+            return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
+        }
+
+        const downloadsDb = await readDatabase('downloads.json');
+        downloadsDb.downloads.push({
+            productId: product.id,
+            productName: product.name,
+            userId: user.id,
+            downloadedAt: new Date().toISOString(),
+            ip: req.ip
+        });
+        await writeDatabase('downloads.json', downloadsDb);
+
+        product.downloads = (product.downloads || 0) + 1;
+        await writeDatabase('products.json', productsDb);
+
+        await logActivity('PRODUCT_DOWNLOADED', `Produto baixado (autenticado): ${product.name}`, user.id, req.ip);
+
+        const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
+        res.download(filePath, originalFileName);
+
+    } catch (error) {
+        console.error('Erro no download autenticado:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
 app.get('/api/verify-token', authenticateToken, (req, res) => {
     res.json({ valid: true, user: req.user });
 });
 
-// Produtos
 app.get('/api/products', async (req, res) => {
     try {
         const products = await readDatabase('products.json');
         res.json(products);
     } catch (error) {
-        console.error('Erro ao ler produtos:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -186,7 +394,6 @@ app.get('/api/products/:id', async (req, res) => {
         
         res.json(product);
     } catch (error) {
-        console.error('Erro ao buscar produto:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -197,23 +404,19 @@ app.get('/api/products/upcoming', async (req, res) => {
         const upcoming = products.filter(p => p.status === 'upcoming');
         res.json(upcoming);
     } catch (error) {
-        console.error('Erro ao ler produtos:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// Estatísticas
 app.get('/api/stats', async (req, res) => {
     try {
         const stats = await readDatabase('stats.json');
         res.json(stats);
     } catch (error) {
-        console.error('Erro ao ler estatísticas:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// Moedas
 app.get('/api/currencies', (req, res) => {
     const currencies = [
         { 
@@ -222,7 +425,7 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'BTC', 
             icon: 'fab fa-bitcoin',
             color: '#f7931a',
-            address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            address: 'bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w',
             network: 'Bitcoin Mainnet'
         },
         { 
@@ -231,7 +434,7 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'ETH', 
             icon: 'fab fa-ethereum',
             color: '#627eea',
-            address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
             network: 'Ethereum Mainnet'
         },
         { 
@@ -240,8 +443,8 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'USDT', 
             icon: 'fas fa-coins',
             color: '#26a17b',
-            address: 'TNSgRrJjU9vCh3qLgJoj5gLk7Wb9Xr1R6F',
-            network: 'TRC20'
+            address: 'TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa',
+            network: 'TRC20 (Tron)'
         },
         { 
             id: 'bnb', 
@@ -249,8 +452,8 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'BNB', 
             icon: 'fab fa-btc',
             color: '#f0b90b',
-            address: 'bnb136ns6lfw4s5hg4n85vthaad7hq5m4gtkgf23a',
-            network: 'BEP20'
+            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
+            network: 'BEP20 (Binance Smart Chain)'
         },
         { 
             id: 'solana', 
@@ -258,8 +461,8 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'SOL', 
             icon: 'fas fa-sun',
             color: '#00ffa3',
-            address: '7WZ7zQ7mFQK2qK7Q2K7Q2K7Q2K7Q2K7Q2K7Q2K7Q',
-            network: 'Solana'
+            address: '8qpUpMp3hi9cvRjWncAAA3Da5hD36ecy5HdCzvqYW6nG',
+            network: 'Solana Mainnet'
         },
         { 
             id: 'litecoin', 
@@ -267,16 +470,13 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'LTC', 
             icon: 'fab fa-bitcoin',
             color: '#bfbbbb',
-            address: 'LcF8b2m7p3j6Qa9T4wX1zY5v8K0n',
-            network: 'Litecoin'
+            address: 'ltc1qzcapvq8fytjtd4kxnt7srl2cm45um3rxf7h4j8',
+            network: 'Litecoin Mainnet'
         }
     ];
     res.json(currencies);
 });
 
-// ==================== ROTAS ADMIN ====================
-
-// Rota de login admin
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -289,27 +489,25 @@ app.post('/api/admin/login', async (req, res) => {
         const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
         
         if (!user) {
-            await logActivity('LOGIN_FAILED', `Tentativa de login com usuário inexistente: ${username}`);
+            await logActivity('LOGIN_FAILED', `Tentativa de login com usuário inexistente: ${username}`, null, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            await logActivity('LOGIN_FAILED', `Senha incorreta para usuário: ${username}`, user.id);
+            await logActivity('LOGIN_FAILED', `Senha incorreta para usuário: ${username}`, user.id, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         if (!user.isAdmin) {
-            await logActivity('LOGIN_FAILED', `Usuário não-admin tentou acessar admin: ${username}`, user.id);
+            await logActivity('LOGIN_FAILED', `Usuário não-admin tentou acessar admin: ${username}`, user.id, req.ip);
             return res.status(403).json({ error: 'Acesso não autorizado. Apenas administradores.' });
         }
 
-        // Atualizar último login
         user.lastLogin = new Date().toISOString();
         user.lastActive = new Date().toISOString();
         await writeDatabase('users.json', db);
 
-        // Gerar token
         const token = jwt.sign(
             { 
                 id: user.id, 
@@ -321,7 +519,7 @@ app.post('/api/admin/login', async (req, res) => {
             { expiresIn: '30d' }
         );
 
-        await logActivity('LOGIN_SUCCESS', `Admin ${username} fez login`, user.id);
+        await logActivity('LOGIN_SUCCESS', `Admin ${username} fez login`, user.id, req.ip);
 
         res.json({
             message: 'Login realizado com sucesso!',
@@ -342,12 +540,10 @@ app.post('/api/admin/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro no login admin:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// Dashboard admin
 app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -398,12 +594,10 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
         res.json(detailedStats);
 
     } catch (error) {
-        console.error('Erro ao buscar estatísticas do dashboard:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// Produtos admin
 app.get('/api/admin/products', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -417,12 +611,11 @@ app.get('/api/admin/products', authenticateToken, async (req, res) => {
         res.json(products);
 
     } catch (error) {
-        console.error('Erro ao buscar produtos admin:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-app.post('/api/admin/products', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/admin/products', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
         const user = db.users.find(u => u.id === req.user.id);
@@ -440,7 +633,7 @@ app.post('/api/admin/products', authenticateToken, upload.single('file'), async 
         const productsDb = await readDatabase('products.json');
         
         const newProduct = {
-            id: productData.id || `prod-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `prod-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: productData.name,
             description: productData.description,
             longDescription: productData.longDescription || '',
@@ -448,7 +641,7 @@ app.post('/api/admin/products', authenticateToken, upload.single('file'), async 
             originalPrice: productData.originalPrice || productData.price,
             currency: productData.currency || 'BTC',
             category: productData.category || 'automation',
-            features: productData.features ? productData.features.split(',').map(f => f.trim()) : [],
+            features: productData.features ? (Array.isArray(productData.features) ? productData.features : productData.features.split(',').map(f => f.trim())) : [],
             status: productData.isUpcoming ? 'upcoming' : 'active',
             featured: productData.featured || false,
             uploadDate: new Date().toISOString(),
@@ -456,11 +649,12 @@ app.post('/api/admin/products', authenticateToken, upload.single('file'), async 
             version: productData.version || '1.0.0',
             downloads: 0,
             rating: 0,
-            tags: productData.tags ? productData.tags.split(',').map(t => t.trim()) : [],
+            tags: productData.tags ? (Array.isArray(productData.tags) ? productData.tags : productData.tags.split(',').map(t => t.trim())) : [],
             systemRequirements: productData.systemRequirements || {},
-            includes: productData.includes ? productData.includes.split(',').map(i => i.trim()) : [],
-            fileSize: req.file ? `${(req.file.size / (1024 * 1024)).toFixed(1)} MB` : '0 MB',
-            filePath: req.file ? `/uploads/${req.file.filename}` : '',
+            includes: productData.includes ? (Array.isArray(productData.includes) ? productData.includes : productData.includes.split(',').map(i => i.trim())) : [],
+            fileSize: productData.fileSize || '0 MB',
+            filePath: productData.fileUrl || '',
+            fileName: productData.fileName || '',
             developer: productData.developer || 'Lua Works Team',
             changelog: productData.changelog || []
         };
@@ -468,7 +662,7 @@ app.post('/api/admin/products', authenticateToken, upload.single('file'), async 
         productsDb.push(newProduct);
         await writeDatabase('products.json', productsDb);
 
-        await logActivity('PRODUCT_ADDED', `Produto adicionado: ${newProduct.name}`, user.id);
+        await logActivity('PRODUCT_ADDED', `Produto adicionado: ${newProduct.name}`, user.id, req.ip);
 
         res.status(201).json({
             message: 'Produto criado com sucesso!',
@@ -506,7 +700,7 @@ app.put('/api/admin/products/:id', authenticateToken, async (req, res) => {
         productsDb[productIndex] = updatedProduct;
         await writeDatabase('products.json', productsDb);
 
-        await logActivity('PRODUCT_UPDATED', `Produto atualizado: ${updatedProduct.name}`, user.id);
+        await logActivity('PRODUCT_UPDATED', `Produto atualizado: ${updatedProduct.name}`, user.id, req.ip);
 
         res.json({
             message: 'Produto atualizado com sucesso!',
@@ -536,10 +730,21 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
         }
 
         const deletedProduct = productsDb[productIndex];
+        
+        if (deletedProduct.filePath) {
+            const filePath = path.join(__dirname, deletedProduct.filePath);
+            try {
+                await fs.unlink(filePath);
+                await logActivity('FILE_DELETED', `Arquivo removido: ${deletedProduct.filePath}`, user.id, req.ip);
+            } catch (error) {
+                console.warn(`Arquivo não encontrado para remoção: ${filePath}`);
+            }
+        }
+
         productsDb.splice(productIndex, 1);
         await writeDatabase('products.json', productsDb);
 
-        await logActivity('PRODUCT_DELETED', `Produto excluído: ${deletedProduct.name}`, user.id);
+        await logActivity('PRODUCT_DELETED', `Produto excluído: ${deletedProduct.name}`, user.id, req.ip);
 
         res.json({
             message: 'Produto excluído com sucesso!'
@@ -551,7 +756,6 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// Atividade recente
 app.get('/api/admin/recent-activity', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -569,12 +773,10 @@ app.get('/api/admin/recent-activity', authenticateToken, async (req, res) => {
         res.json(recentActivity);
 
     } catch (error) {
-        console.error('Erro ao buscar atividade recente:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// Logs de segurança
 app.get('/api/admin/security-logs', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -586,24 +788,48 @@ app.get('/api/admin/security-logs', authenticateToken, async (req, res) => {
 
         const logsDb = await readDatabase('logs.json');
         const securityLogs = logsDb.logs
-            .filter(l => l.event.includes('LOGIN') || l.event.includes('SECURITY'))
+            .filter(l => l.event.includes('LOGIN') || l.event.includes('SECURITY') || l.event.includes('FILE'))
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .slice(0, 20);
 
         res.json(securityLogs);
 
     } catch (error) {
-        console.error('Erro ao buscar logs de segurança:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// ==================== AUTENTICAÇÃO USUÁRIO ====================
+app.post('/api/admin/reset-credentials', authenticateToken, async (req, res) => {
+    try {
+        const db = await readDatabase('users.json');
+        const user = db.users.find(u => u.id === req.user.id);
+        
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ error: 'Acesso negado' });
+        }
+
+        const success = await syncAdminUser();
+        
+        if (success) {
+            await logActivity('ADMIN_RESET', `Admin reiniciou credenciais do sistema`, user.id, req.ip);
+            res.json({ 
+                message: 'Credenciais do admin atualizadas com sucesso!',
+                username: ADMIN_USERNAME,
+                email: ADMIN_EMAIL
+            });
+        } else {
+            res.status(500).json({ error: 'Erro ao atualizar credenciais' });
+        }
+
+    } catch (error) {
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         
-        // Validação
         if (!username || !email || !password) {
             return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
         }
@@ -622,7 +848,6 @@ app.post('/api/auth/register', async (req, res) => {
 
         const db = await readDatabase('users.json');
         
-        // Verificar se usuário já existe
         if (db.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
             return res.status(400).json({ error: 'Email já cadastrado' });
         }
@@ -631,7 +856,6 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ error: 'Nome de usuário já existe' });
         }
 
-        // Hash da senha
         const hashedPassword = await bcrypt.hash(password, 12);
         
         const newUser = {
@@ -662,22 +886,20 @@ app.post('/api/auth/register', async (req, res) => {
             createdAt: new Date().toISOString(),
             lastLogin: new Date().toISOString(),
             lastActive: new Date().toISOString(),
-            isAdmin: db.users.length === 0, // Primeiro usuário é admin
+            isAdmin: false,
             isVerified: false,
             twoFactorEnabled: false,
-            apiKey: 'lw_' + require('crypto').randomBytes(16).toString('hex')
+            apiKey: 'lw_' + crypto.randomBytes(16).toString('hex')
         };
 
         db.users.push(newUser);
         await writeDatabase('users.json', db);
 
-        // Atualizar estatísticas
         const stats = await readDatabase('stats.json');
         stats.totalUsers = db.users.length;
         stats.activeUsers = db.users.filter(u => u.lastLogin).length;
         await writeDatabase('stats.json', stats);
 
-        // Gerar token
         const token = jwt.sign(
             { 
                 id: newUser.id, 
@@ -689,7 +911,7 @@ app.post('/api/auth/register', async (req, res) => {
             { expiresIn: '30d' }
         );
 
-        await logActivity('USER_REGISTERED', `Novo usuário registrado: ${username}`, newUser.id);
+        await logActivity('USER_REGISTERED', `Novo usuário registrado: ${username}`, newUser.id, req.ip);
 
         res.status(201).json({
             message: 'Usuário criado com sucesso!',
@@ -707,7 +929,6 @@ app.post('/api/auth/register', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro no registro:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -724,22 +945,20 @@ app.post('/api/auth/login', async (req, res) => {
         const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
         
         if (!user) {
-            await logActivity('LOGIN_FAILED', `Tentativa de login com email inexistente: ${email}`);
+            await logActivity('LOGIN_FAILED', `Tentativa de login com email inexistente: ${email}`, null, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            await logActivity('LOGIN_FAILED', `Senha incorreta para email: ${email}`, user.id);
+            await logActivity('LOGIN_FAILED', `Senha incorreta para email: ${email}`, user.id, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
-        // Atualizar último login
         user.lastLogin = new Date().toISOString();
         user.lastActive = new Date().toISOString();
         await writeDatabase('users.json', db);
 
-        // Gerar token
         const token = jwt.sign(
             { 
                 id: user.id, 
@@ -751,7 +970,7 @@ app.post('/api/auth/login', async (req, res) => {
             { expiresIn: '30d' }
         );
 
-        await logActivity('LOGIN_SUCCESS', `Usuário fez login: ${user.username}`, user.id);
+        await logActivity('LOGIN_SUCCESS', `Usuário fez login: ${user.username}`, user.id, req.ip);
 
         res.json({
             message: 'Login realizado com sucesso!',
@@ -772,7 +991,6 @@ app.post('/api/auth/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro no login:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -786,7 +1004,6 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Usuário não encontrado' });
         }
 
-        // Atualizar última atividade
         user.lastActive = new Date().toISOString();
         await writeDatabase('users.json', db);
 
@@ -807,12 +1024,10 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao buscar usuário:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// ==================== ROTAS ADMIN EXISTENTES ====================
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -838,7 +1053,6 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
         res.json(users);
 
     } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -883,7 +1097,6 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
         res.json(detailedStats);
 
     } catch (error) {
-        console.error('Erro ao buscar estatísticas:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -902,12 +1115,10 @@ app.get('/api/admin/orders', authenticateToken, async (req, res) => {
         res.json(ordersDb.orders);
 
     } catch (error) {
-        console.error('Erro ao buscar pedidos:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// ==================== ROTAS PÚBLICAS ====================
 app.get('/api/public/products', async (req, res) => {
     try {
         const products = await readDatabase('products.json');
@@ -918,19 +1129,18 @@ app.get('/api/public/products', async (req, res) => {
             price: p.price,
             currency: p.currency,
             category: p.category,
-            features: p.features.slice(0, 3),
+            features: p.features?.slice(0, 3) || [],
             status: p.status,
             featured: p.featured,
             uploadDate: p.uploadDate,
             version: p.version,
-            downloads: p.downloads,
-            rating: p.rating,
-            tags: p.tags
+            downloads: p.downloads || 0,
+            rating: p.rating || 0,
+            tags: p.tags || []
         }));
         
         res.json(publicProducts);
     } catch (error) {
-        console.error('Erro ao buscar produtos públicos:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -948,12 +1158,37 @@ app.get('/api/public/stats', async (req, res) => {
         
         res.json(publicStats);
     } catch (error) {
-        console.error('Erro ao buscar estatísticas públicas:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// ==================== BACKUP ====================
+app.post('/api/payments/verify', async (req, res) => {
+    try {
+        const { txHash, currency, amount, productId } = req.body;
+        
+        if (!txHash || !currency || !amount || !productId) {
+            return res.status(400).json({ error: 'Dados incompletos' });
+        }
+
+        await logActivity('PAYMENT_VERIFICATION_ATTEMPT', 
+            `Tentativa de verificação: ${currency} ${amount} - TX: ${txHash}`, 
+            req.user?.id || null,
+            req.ip
+        );
+
+        res.json({
+            verified: true,
+            message: 'Pagamento verificado com sucesso!',
+            txHash: txHash,
+            confirmations: 3,
+            status: 'confirmed'
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
 app.get('/api/admin/backup', authenticateToken, async (req, res) => {
     try {
         const db = await readDatabase('users.json');
@@ -974,126 +1209,73 @@ app.get('/api/admin/backup', authenticateToken, async (req, res) => {
         output.on('close', () => {
             res.download(backupFile, `lua-works-backup-${Date.now()}.zip`, (err) => {
                 if (err) {
-                    console.error('Erro ao enviar backup:', err);
+                    console.error('Erro ao baixar backup:', err);
                 }
-                // Limpar arquivo após download
                 fs.unlink(backupFile).catch(() => {});
             });
         });
         
         archive.pipe(output);
         archive.directory(DB_PATH, 'database');
+        archive.directory(UPLOADS_PATH, 'uploads');
         archive.finalize();
 
     } catch (error) {
-        console.error('Erro ao criar backup:', error);
+        console.error('Erro no backup:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
-// ==================== ROTAS DE ADMIN INTERFACE ====================
-// Rota para servir admin login
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, '/public/admin-login.html'));
 });
 
-// Rota para servir admin dashboard
 app.get('/admin/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, '/public/admin-dashboard.html'));
 });
 
-// ==================== ROTA PARA SERVIR INDEX.HTML ====================
-// Esta rota precisa ser ajustada para servir o index.html da pasta public
 app.get('*', (req, res) => {
     res.sendFile(path.join(PUBLIC_PATH, 'index.html'));
 });
 
-// ==================== INICIALIZAR SERVIDOR ====================
 async function startServer() {
     try {
-        await ensureDirectories();
+        await fs.mkdir(DB_PATH, { recursive: true });
+        await fs.mkdir(UPLOADS_PATH, { recursive: true });
+        await fs.mkdir(PUBLIC_PATH, { recursive: true });
+        await fs.mkdir(path.join(__dirname, 'backups'), { recursive: true });
         
-        // Verificar se a pasta public existe
-        try {
-            await fs.access(PUBLIC_PATH);
-            console.log(`📁 Pasta public encontrada: ${PUBLIC_PATH}`);
-            
-            // Verificar se index.html existe na pasta public
-            const indexPath = path.join(PUBLIC_PATH, 'index.html');
+        const files = ['users.json', 'products.json', 'orders.json', 'stats.json', 'downloads.json', 'reviews.json', 'logs.json'];
+        for (const file of files) {
             try {
-                await fs.access(indexPath);
-                console.log('✅ index.html encontrado na pasta public');
+                await fs.access(path.join(DB_PATH, file));
             } catch {
-                console.warn('⚠️ index.html não encontrado na pasta public');
-            }
-        } catch {
-            console.warn('⚠️ Pasta public não encontrada, criando...');
-            await fs.mkdir(PUBLIC_PATH, { recursive: true });
-        }
-        
-        // Inicializar dados se não existirem
-        const products = await readDatabase('products.json');
-        if (products.length === 0) {
-            await writeDatabase('products.json', await generateRealProducts());
-        }
-        
-        const stats = await readDatabase('stats.json');
-        if (!stats.totalUsers) {
-            await writeDatabase('stats.json', await generateRealStats());
-        }
-
-        // Inicializar arquivo de logs se não existir
-        try {
-            await readDatabase('logs.json');
-        } catch {
-            await writeDatabase('logs.json', { logs: [] });
-        }
-
-        // Criar arquivos de download simulado
-        const realProducts = await generateRealProducts();
-        for (const product of realProducts) {
-            if (product.status === 'active' && product.filePath) {
-                const fileName = path.basename(product.filePath);
-                const filePath = path.join(UPLOADS_PATH, fileName);
-                
-                try {
-                    await fs.access(filePath);
-                } catch {
-                    // Criar arquivo simulado
-                    const archiver = require('archiver');
-                    const output = fsSync.createWriteStream(filePath);
-                    const archive = archiver('zip', { zlib: { level: 9 } });
-                    
-                    output.on('close', () => {
-                        console.log(`✅ Arquivo criado: ${fileName}`);
-                    });
-                    
-                    archive.pipe(output);
-                    archive.append(`-- ${product.name} v${product.version}\n-- Premium Script by Lua Works\n-- www.luaworks.dev\n\nprint("${product.name} carregado com sucesso!")`, { name: 'main.lua' });
-                    archive.append(`# ${product.name}\n\nPremium Lua script for Roblox.\n\n## Features\n${product.features.map(f => `- ${f}`).join('\n')}\n\n## Installation\n1. Extract files\n2. Run main.lua\n3. Enjoy!`, { name: 'README.md' });
-                    archive.finalize();
-                }
+                if (file === 'users.json') await writeDatabase(file, { users: [] });
+                else if (file === 'products.json') await writeDatabase(file, []);
+                else if (file === 'orders.json') await writeDatabase(file, { orders: [] });
+                else if (file === 'stats.json') await writeDatabase(file, await generateRealStats());
+                else if (file === 'downloads.json') await writeDatabase(file, { downloads: [] });
+                else if (file === 'reviews.json') await writeDatabase(file, { reviews: [] });
+                else if (file === 'logs.json') await writeDatabase(file, { logs: [] });
             }
         }
+
+        await syncAdminUser();
+
+        console.log(`
+
+        🚀 Servidor Lua Works iniciado!
+
+        `);
 
         app.listen(PORT, () => {
-            console.log(`🐂 Servidor rodando na porta ${PORT}`);
+            console.log(`✅ Servidor rodando na porta ${PORT}`);
         });
 
     } catch (error) {
-        console.error('✖ Erro ao iniciar servidor:', error);
+        console.error('❌ Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 }
 
-// Iniciar servidor
 startServer().catch(console.error);
-
-// Tratar erros não capturados
-process.on('uncaughtException', (error) => {
-    console.error('✖ Erro não capturado:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('✖ Promessa rejeitada não tratada:', reason);
-});

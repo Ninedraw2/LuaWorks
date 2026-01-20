@@ -1,4 +1,3 @@
-// ==================== CONFIGURAÇÃO ====================
 const API_BASE = '/api';
 let products = [];
 let upcomingProducts = [];
@@ -13,7 +12,6 @@ let adminEnabled = false;
 let adminSequence = [];
 const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
 
-// Dados de exemplo para desenvolvimento
 const sampleProducts = [
     {
         id: 'auto-farm-1',
@@ -115,37 +113,20 @@ const sampleProducts = [
 
 const sampleUpcoming = [];
 
-// ==================== INICIALIZAÇÃO ====================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Lua Works - Inicializando sistema...');
     
     try {
-        // Carregar dados da API ou usar dados de exemplo
         await loadAllData();
-        
-        // Carregar usuário se estiver logado
         await loadUserData();
-        
-        // Carregar carrinho do localStorage
         loadCart();
-        
-        // Configurar eventos
         setupEventListeners();
-        
-        // Configurar animações
         setupAnimations();
-        
-        // Configurar sistema admin secreto
         setupAdminSystem();
-        
-        // Atualizar UI
         updateUI();
-        
-        // Renderizar dados iniciais
         renderProducts();
         renderCurrencies();
         updateStatsDisplay();
-        
         console.log('Sistema inicializado com sucesso!');
     } catch (error) {
         console.error('Erro na inicialização:', error);
@@ -153,10 +134,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ==================== CARREGAMENTO DE DADOS ====================
 async function loadAllData() {
     try {
-        // Tentar carregar da API
         const [productsData, currenciesData, upcomingData] = await Promise.all([
             fetchData('/products'),
             fetchData('/currencies'),
@@ -166,7 +145,6 @@ async function loadAllData() {
         products = productsData || sampleProducts;
         currencies = currenciesData || getDefaultCurrencies();
         upcomingProducts = upcomingData || sampleUpcoming;
-        
     } catch (error) {
         console.warn('Erro ao carregar dados da API, usando dados locais:', error.message);
         products = sampleProducts;
@@ -184,14 +162,9 @@ async function loadUserData() {
     try {
         currentUser = JSON.parse(userData);
         userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
-        
-        // Verificar se é admin
-        if (currentUser.email === 'admin@luaworks.dev' || 
-            currentUser.username === 'admin' ||
-            currentUser.isAdmin) {
+        if (currentUser.email === 'admin@luaworks.dev' || currentUser.username === 'admin' || currentUser.isAdmin) {
             currentUser.isAdmin = true;
         }
-        
         console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
         console.log(`Compras carregadas: ${userPurchases.length}`);
     } catch (error) {
@@ -276,14 +249,10 @@ function getDefaultCurrencies() {
     ];
 }
 
-// ==================== SISTEMA DE CARRINHO ====================
 function addToCart(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    
-    // Verificar se já está no carrinho
     const existingItem = cart.find(item => item.productId === productId);
-    
     if (existingItem) {
         existingItem.quantity += 1;
     } else {
@@ -296,25 +265,19 @@ function addToCart(productId) {
             image: getProductIcon(product.category)
         });
     }
-    
     saveCart();
     updateCartModal();
     showMessage('Produto adicionado ao carrinho!', 'success');
-    
-    // Atualizar botão no produto
     updateProductButton(productId, true);
 }
 
 function removeFromCart(productId) {
     const itemIndex = cart.findIndex(item => item.productId === productId);
-    
     if (itemIndex !== -1) {
         cart.splice(itemIndex, 1);
         saveCart();
         updateCartModal();
         showMessage('Produto removido do carrinho', 'info');
-        
-        // Atualizar botão no produto
         updateProductButton(productId, false);
     }
 }
@@ -324,27 +287,20 @@ function updateCartModal() {
     const cartSummary = document.getElementById('cartSummary');
     const checkoutBtn = document.getElementById('checkoutBtn');
     const cartEmpty = cartItems.querySelector('.cart-empty');
-    
     if (cart.length === 0) {
         if (cartEmpty) {
             cartEmpty.style.display = 'block';
         }
         cartSummary.style.display = 'none';
         checkoutBtn.style.display = 'none';
-        
-        // Limpar itens existentes
         const existingItems = cartItems.querySelectorAll('.cart-item');
         existingItems.forEach(item => item.remove());
     } else {
         if (cartEmpty) {
             cartEmpty.style.display = 'none';
         }
-        
-        // Limpar itens existentes
         const existingItems = cartItems.querySelectorAll('.cart-item');
         existingItems.forEach(item => item.remove());
-        
-        // Adicionar novos itens
         cart.forEach(item => {
             const cartItem = document.createElement('div');
             cartItem.className = 'cart-item';
@@ -362,8 +318,6 @@ function updateCartModal() {
             `;
             cartItems.appendChild(cartItem);
         });
-        
-        // Atualizar resumo
         updateCartSummary();
         cartSummary.style.display = 'block';
         checkoutBtn.style.display = 'block';
@@ -372,9 +326,8 @@ function updateCartModal() {
 
 function updateCartSummary() {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const fee = subtotal * 0.02; // 2% de taxa
+    const fee = subtotal * 0.02;
     const total = subtotal + fee;
-    
     document.getElementById('cartSubtotal').textContent = `${subtotal.toFixed(4)} BTC`;
     document.getElementById('cartFee').textContent = `${fee.toFixed(4)} BTC`;
     document.getElementById('cartTotal').textContent = `${total.toFixed(4)} BTC`;
@@ -385,47 +338,35 @@ function updateProductButton(productId, inCart) {
     if (productCard) {
         const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
-            if (inCart) {
-            } else {
-            }
         }
     }
 }
 
-// ==================== RENDERIZAÇÃO ====================
 function renderProducts() {
     const container = document.getElementById('productsGrid');
     if (!container) return;
-    
     let allProducts = [...products];
-    
-    // Adicionar produtos upcoming no final
     if (upcomingProducts.length > 0) {
         allProducts = [...products, ...upcomingProducts];
     }
-    
     container.innerHTML = allProducts.map(product => {
         const isUpcoming = product.status === 'upcoming';
         const isFeatured = product.featured;
         const hasPurchased = userPurchases.some(p => p.productId === product.id);
         const inCart = cart.some(item => item.productId === product.id);
-        
         return `
             <div class="product-card fade-in" data-id="${product.id}" data-category="${product.category || 'automation'}" data-upcoming="${isUpcoming}">
                 ${isFeatured ? '<div class="product-badge featured">DESTAQUE</div>' : ''}
                 ${isUpcoming ? '<div class="product-badge upcoming">EM BREVE</div>' : ''}
                 ${hasPurchased ? '<div class="product-badge purchased"><i class="fas fa-check-circle"></i> COMPRADO</div>' : ''}
-                
                 <div class="product-image" style="background: linear-gradient(135deg, ${getCategoryColor(product.category)}, rgba(0, 255, 136, 0.2));">
                     <i class="${getProductIcon(product.category)}"></i>
                     ${isUpcoming ? '<div class="upcoming-overlay"><i class="fas fa-clock"></i></div>' : ''}
                     ${hasPurchased ? '<div class="purchased-overlay"><i class="fas fa-download"></i> DISPONÍVEL</div>' : ''}
                 </div>
-                
                 <div class="product-content">
                     <h3 class="product-title">${escapeHtml(product.name)}</h3>
                     <p class="product-description">${escapeHtml(product.description || 'Script Lua premium otimizado')}</p>
-                    
                     <div class="product-meta">
                         <span class="product-category ${product.category || 'automation'}">
                             <i class="${getCategoryIcon(product.category)}"></i> ${getCategoryName(product.category)}
@@ -435,7 +376,6 @@ function renderProducts() {
                             <span class="rating-text">${product.rating || 'N/A'}</span>
                         </div>
                     </div>
-                    
                     <div class="product-stats">
                         <span class="product-stat">
                             <i class="fas fa-download"></i> ${product.downloads || 0}
@@ -447,7 +387,6 @@ function renderProducts() {
                             <i class="fas fa-hdd"></i> ${product.fileSize || 'N/A'}
                         </span>
                     </div>
-                    
                     <div class="product-price-container">
                         <div class="product-price">
                             ${escapeHtml(product.price)} <span class="currency-symbol">${product.currency || 'BTC'}</span>
@@ -455,7 +394,6 @@ function renderProducts() {
                         </div>
                         ${product.discount ? `<span class="product-discount">-${product.discount}%</span>` : ''}
                     </div>
-                    
                     <div class="product-features">
                         ${(product.features || []).slice(0, 3).map(feature => `
                             <span class="product-feature">
@@ -463,7 +401,6 @@ function renderProducts() {
                             </span>
                         `).join('')}
                     </div>
-                    
                     <div class="product-footer">
                         <div class="product-date">
                             <i class="fas fa-calendar"></i> ${formatDate(product.uploadDate || new Date().toISOString())}
@@ -489,8 +426,6 @@ function renderProducts() {
             </div>
         `;
     }).join('');
-    
-    // Remover loading state
     const loadingProducts = container.querySelector('.loading-products');
     if (loadingProducts) {
         loadingProducts.remove();
@@ -501,7 +436,6 @@ function renderStars(rating) {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
-    
     for (let i = 1; i <= 5; i++) {
         if (i <= fullStars) {
             stars.push('<i class="fas fa-star"></i>');
@@ -511,14 +445,12 @@ function renderStars(rating) {
             stars.push('<i class="far fa-star"></i>');
         }
     }
-    
     return stars.join('');
 }
 
 function renderCurrencies() {
     const container = document.getElementById('currenciesGrid');
     if (!container) return;
-    
     container.innerHTML = currencies.map(currency => `
         <div class="currency-option" data-currency="${currency.id}" onclick="selectCurrency('${currency.id}')">
             <div class="currency-icon ${currency.id}" style="color: ${currency.color || '#00ff88'}">
@@ -537,12 +469,10 @@ function renderCurrencies() {
 }
 
 function updateStatsDisplay() {
-    // Atualizar estatísticas simples
     const statsContainer = document.getElementById('statsContainer');
     if (statsContainer) {
         const totalProducts = products.length + upcomingProducts.length;
         const availableProducts = products.length;
-        
         statsContainer.innerHTML = `
             <div class="hero-stats">
                 <div class="stat-item">
@@ -566,42 +496,30 @@ function updateStatsDisplay() {
     }
 }
 
-// ==================== MODAL DE PAGAMENTO ====================
 function openPaymentModal(productId = null) {
     isCheckoutModal = productId === null;
-    
     if (!isCheckoutModal) {
-        // Compra individual
         selectedProduct = [...products, ...upcomingProducts].find(p => p.id === productId);
         if (!selectedProduct) {
             showError('Produto não encontrado');
             return;
         }
-        
-        // Verificar se é upcoming
         if (selectedProduct.status === 'upcoming') {
             showMessage('Este produto estará disponível em breve!', 'info');
             return;
         }
-        
-        // Verificar se já comprou
         if (userPurchases.some(p => p.productId === productId)) {
             showMessage('Você já possui este produto! Acesse Minhas Compras.', 'success');
             return;
         }
     } else {
-        // Checkout do carrinho
         if (cart.length === 0) {
             showError('Seu carrinho está vazio');
             return;
         }
-        
-        // Calcular total do carrinho
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const fee = subtotal * 0.02;
         const total = subtotal + fee;
-        
-        // Criar produto virtual para o carrinho
         selectedProduct = {
             id: 'cart-checkout',
             name: 'Carrinho de Compras',
@@ -611,39 +529,27 @@ function openPaymentModal(productId = null) {
             features: cart.map(item => `${item.quantity}x ${item.name}`)
         };
     }
-    
     const modal = document.getElementById('paymentModal');
     const productName = document.getElementById('modalProductName');
     const productPrice = document.getElementById('modalProductPrice');
     const productDescription = document.getElementById('modalProductDescription');
     const productFeatures = document.getElementById('modalProductFeatures');
-    
     if (!productName || !productPrice || !productDescription || !productFeatures) {
         showError('Elementos do modal não encontrados');
         return;
     }
-    
     productName.textContent = selectedProduct.name;
     productPrice.innerHTML = `
         <span class="price-main">${selectedProduct.price} ${selectedProduct.currency || 'BTC'}</span>
     `;
-    
     productDescription.textContent = selectedProduct.description;
-    
-    // Listar features
     productFeatures.innerHTML = (selectedProduct.features || []).map(feature => `
         <li><i class="fas fa-check"></i> ${escapeHtml(feature)}</li>
     `).join('');
-    
-    // Resetar seleção de moeda
     selectedCurrency = null;
     resetCurrencySelection();
-    
-    // Mostrar modal
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -651,19 +557,16 @@ function openPaymentModal(productId = null) {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
     console.log(`Abrindo modal para: ${selectedProduct.name}`);
 }
 
 function closePaymentModal() {
     const modal = document.getElementById('paymentModal');
     const modalContent = modal.querySelector('.modal-content');
-    
     if (modalContent) {
         modalContent.style.opacity = '0';
         modalContent.style.transform = 'translateY(-50px)';
     }
-    
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -671,45 +574,32 @@ function closePaymentModal() {
         selectedCurrency = null;
         isCheckoutModal = false;
     }, 300);
-    
     console.log('Modal fechado');
 }
 
 function selectCurrency(currencyId) {
     selectedCurrency = currencies.find(c => c.id === currencyId);
     if (!selectedCurrency) return;
-    
-    // Remover seleção anterior
     document.querySelectorAll('.currency-option').forEach(option => {
         option.classList.remove('selected');
     });
-    
-    // Adicionar seleção atual
     const selectedOption = document.querySelector(`[data-currency="${currencyId}"]`);
     if (selectedOption) {
         selectedOption.classList.add('selected');
     }
-    
-    // Atualizar endereço da carteira
     updateWalletAddress();
-    
-    // Gerar/Atualizar QR Code
     updateQRCode();
-    
     console.log(`Moeda selecionada: ${selectedCurrency.name}`);
 }
 
 function updateWalletAddress() {
     if (!selectedCurrency) return;
-    
     const addressElement = document.getElementById('walletAddress');
     const networkElement = document.getElementById('walletNetwork');
-    
     if (addressElement) {
         addressElement.textContent = selectedCurrency.address;
         addressElement.style.color = selectedCurrency.color || '#00ff88';
     }
-    
     if (networkElement) {
         networkElement.textContent = `Rede: ${selectedCurrency.network || 'Mainnet'}`;
     }
@@ -717,13 +607,9 @@ function updateWalletAddress() {
 
 function updateQRCode() {
     if (!selectedCurrency) return;
-    
     const qrElement = document.getElementById('walletQr');
     if (!qrElement) return;
-    
-    // Gerar QR Code
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selectedCurrency.address)}`;
-    
     qrElement.innerHTML = `
         <div class="qr-container">
             <img src="${qrCodeUrl}" alt="QR Code para ${selectedCurrency.name}" class="qr-image">
@@ -743,18 +629,15 @@ function resetCurrencySelection() {
     document.querySelectorAll('.currency-option').forEach(option => {
         option.classList.remove('selected');
     });
-    
     const addressElement = document.getElementById('walletAddress');
     if (addressElement) {
         addressElement.textContent = 'Selecione uma moeda acima';
         addressElement.style.color = '';
     }
-    
     const networkElement = document.getElementById('walletNetwork');
     if (networkElement) {
         networkElement.textContent = '';
     }
-    
     const qrElement = document.getElementById('walletQr');
     if (qrElement) {
         qrElement.innerHTML = '<div class="qr-placeholder"><i class="fas fa-qrcode"></i><p>Selecione uma moeda</p></div>';
@@ -766,47 +649,34 @@ async function confirmPayment() {
         showError('Nenhum produto selecionado');
         return;
     }
-    
     if (!selectedCurrency) {
         showError('Selecione uma moeda para pagamento');
         return;
     }
-    
     const token = localStorage.getItem('auth_token');
     if (!token) {
         showError('Você precisa estar logado para realizar a compra');
         openLoginModal();
         return;
     }
-    
     const btn = document.getElementById('confirmPaymentBtn');
     if (!btn) return;
-    
     const originalText = btn.innerHTML;
     const originalBg = btn.style.background;
-    
     try {
-        // Mostrar carregamento
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO PAGAMENTO...';
         btn.disabled = true;
         btn.style.background = 'linear-gradient(45deg, #666, #888)';
-        
-        // Simular processamento
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
         if (isCheckoutModal) {
-            // Processar carrinho completo
             await processCartCheckout();
         } else {
-            // Processar compra individual
             await processSinglePurchase();
         }
-        
     } catch (error) {
         console.error('Erro no pagamento:', error);
         showPaymentError(error);
     } finally {
-        // Restaurar botão
         btn.innerHTML = originalText;
         btn.disabled = false;
         btn.style.background = originalBg;
@@ -814,11 +684,8 @@ async function confirmPayment() {
 }
 
 async function processSinglePurchase() {
-    // Gerar dados da compra
     const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
     const licenseKey = 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase();
-    
-    // Salvar no localStorage
     const newPurchase = {
         id: orderId,
         productId: selectedProduct.id,
@@ -838,11 +705,8 @@ async function processSinglePurchase() {
         fee: parseFloat(selectedProduct.price) * 0.02,
         total: parseFloat(selectedProduct.price) * 1.02
     };
-    
     userPurchases.push(newPurchase);
     localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
-    
-    // Mostrar sucesso
     showPaymentSuccess({
         order: newPurchase
     });
@@ -850,18 +714,14 @@ async function processSinglePurchase() {
 
 async function processCartCheckout() {
     const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-    
-    // Calcular totais
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const fee = subtotal * 0.02;
     const total = subtotal + fee;
-    
-    // Criar compra
     const newPurchase = {
         id: orderId,
         productId: 'cart-checkout',
         productName: 'Carrinho de Compras',
-        licenseKey: null, // Será gerado para cada produto
+        licenseKey: null,
         amount: total,
         currency: 'BTC',
         status: 'completed',
@@ -877,8 +737,6 @@ async function processCartCheckout() {
         fee: fee,
         total: total
     };
-    
-    // Adicionar cada produto às compras do usuário
     newPurchase.items.forEach(item => {
         const productPurchase = {
             id: 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -899,34 +757,22 @@ async function processCartCheckout() {
             fee: (item.price * item.quantity) * 0.02,
             total: (item.price * item.quantity) * 1.02
         };
-        
         userPurchases.push(productPurchase);
     });
-    
     localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
-    
-    // Limpar carrinho
     cart = [];
     saveCart();
     updateCartModal();
-    
-    // Mostrar sucesso
     showPaymentSuccess({
         order: newPurchase
     });
 }
 
 function showPaymentSuccess(paymentData) {
-    // Fechar modal
     closePaymentModal();
-    
-    // Mostrar mensagem de sucesso
     showMessage('Pagamento confirmado! Suas compras estão disponíveis.', 'success');
-    
-    // Mostrar recibo detalhado
     setTimeout(() => {
         let receipt = `COMPRA REALIZADA COM SUCESSO!\n\n`;
-        
         if (isCheckoutModal) {
             receipt += `Produto: Carrinho de Compras\n`;
             receipt += `Itens: ${paymentData.order.items.length}\n`;
@@ -938,39 +784,29 @@ function showPaymentSuccess(paymentData) {
             receipt += `Produto: ${selectedProduct.name}\n`;
             receipt += `Chave de Licença: ${paymentData.order.licenseKey}\n`;
         }
-        
         receipt += `\nValor: ${paymentData.order.total.toFixed(4)} ${paymentData.order.currency}\n`;
         receipt += `ID do Pedido: ${paymentData.order.id}\n`;
         receipt += `Data: ${formatDate(paymentData.order.date)}\n\n`;
-        
         receipt += `IMPORTANTE:\n`;
         receipt += `• Guarde as chaves de licença\n`;
         receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
         receipt += `• Suporte via Discord: discord.gg/luaworks\n\n`;
         receipt += `Obrigado por comprar na Lua Works!`;
-        
         alert(receipt);
-        
-        // Atualizar lista de produtos
         renderProducts();
         updateUI();
-        
     }, 500);
 }
 
 function showPaymentError(error) {
     showMessage(`Erro no pagamento: ${error.message}`, 'error');
-    
-    // Oferecer ajuda
     setTimeout(() => {
         if (confirm('Houve um erro no processamento. Deseja tentar novamente ou entrar em contato com o suporte?')) {
-            // Reabrir modal
             openPaymentModal(isCheckoutModal ? null : selectedProduct?.id);
         }
     }, 1000);
 }
 
-// ==================== SISTEMA DE DOWNLOAD ====================
 async function downloadProduct(productId) {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -978,124 +814,95 @@ async function downloadProduct(productId) {
         openLoginModal();
         return;
     }
-    
-    // Verificar se o usuário possui o produto
     const purchase = userPurchases.find(p => p.productId === productId);
     if (!purchase) {
         showError('Você não possui este produto');
         return;
     }
-    
     try {
-        showMessage('Preparando download...', 'info');
-        
-        // Simular delay de download
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        const product = products.find(p => p.id === productId) || 
-                       upcomingProducts.find(p => p.id === productId);
-        
-        if (!product) {
-            throw new Error('Produto não encontrado');
-        }
-        
-        // Criar conteúdo do arquivo
-        const licenseContent = `LICENÇA LUA WORKS\n\n` +
-            `Produto: ${product.name}\n` +
-            `Chave de Licença: ${purchase.licenseKey}\n` +
-            `Data da Compra: ${formatDate(purchase.date)}\n` +
-            `ID do Pedido: ${purchase.id}\n\n` +
-            `TERMOS:\n` +
-            `1. Uso pessoal apenas\n` +
-            `2. Não redistribuir\n` +
-            `3. Suporte via Discord\n`;
-        
-        const readmeContent = `# ${product.name}\n\n` +
-            `Versão: ${product.version || '1.0'}\n` +
-            `Categoria: ${getCategoryName(product.category)}\n\n` +
-            `## Instalação\n` +
-            `1. Extraia os arquivos\n` +
-            `2. Execute o script principal\n` +
-            `3. Configure as opções\n\n` +
-            `## Suporte\n` +
-            `Discord: discord.gg/luaworks\n` +
-            `Email: support@luaworks.dev`;
-        
-        // Criar blob e link de download
-        const zipContent = `Arquivos do produto: ${product.name}\n\n` +
-            `=== LICENSE.txt ===\n${licenseContent}\n\n` +
-            `=== README.md ===\n${readmeContent}\n\n` +
-            `=== main.lua ===\n-- Código principal aqui\n-- ${product.description}\n\n` +
-            `=== config.json ===\n{"version":"${product.version || '1.0'}","productId":"${product.id}"}`;
-        
-        const blob = new Blob([zipContent], { type: 'application/zip' });
-        const url = URL.createObjectURL(blob);
-        
-        // Criar link de download
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${product.name.replace(/\s+/g, '_')}_v${product.version || '1.0'}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Liberar URL
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        
-        showMessage('Download iniciado! Verifique seus arquivos.', 'success');
-        
+        await downloadFromServer(productId, token);
     } catch (error) {
-        console.error('Erro no download:', error);
-        showError(`Erro ao baixar: ${error.message}`);
+        try {
+            const response = await fetch(`/api/download/${productId}`);
+            if (response.ok) {
+                window.open(`/api/download/${productId}`, '_blank');
+            } else {
+                throw new Error('Download não disponível');
+            }
+        } catch (fallbackError) {
+            console.error('Erro no fallback:', fallbackError);
+        }
     }
 }
 
-// ==================== SISTEMA DE AUTENTICAÇÃO ====================
+async function downloadFromServer(productId, token) {
+    try {
+        showMessage('Iniciando download...', 'info');
+        const response = await fetch(`/api/download/${productId}/authenticated`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+        }
+        let filename = 'download.lua';
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        registerDownload(filename, productId);
+        showMessage('Download iniciado com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro no download do servidor:', error);
+        throw error;
+    }
+}
+
+function registerDownload(filename, productId) {
+    const downloadHistory = JSON.parse(localStorage.getItem('download_history') || '[]');
+    downloadHistory.push({
+        filename: filename,
+        timestamp: new Date().toISOString(),
+        productId: productId
+    });
+    localStorage.setItem('download_history', JSON.stringify(downloadHistory));
+}
+
 async function loginUser(email, password) {
     try {
-        // Simular API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificação básica
-        if (!email || !password) {
-            throw new Error('Preencha todos os campos');
-        }
-        
-        if (!email.includes('@')) {
-            throw new Error('Email inválido');
-        }
-        
-        if (password.length < 6) {
-            throw new Error('Senha deve ter pelo menos 6 caracteres');
-        }
-        
-        // Criar usuário de exemplo
-        const userData = {
-            id: 'user_' + Date.now(),
-            username: email.split('@')[0],
-            email: email,
-            profile: {
-                avatar: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(email.split('@')[0]) + '&background=00ff88&color=0a0a15'
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-            isAdmin: email === 'admin@luaworks.dev' || email.split('@')[0] === 'admin',
-            joinDate: new Date().toISOString()
-        };
-        
-        // Salvar token e dados do usuário
-        const token = 'token_' + Math.random().toString(36).substr(2);
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_data', JSON.stringify(userData));
-        
-        currentUser = userData;
-        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
-        
-        // Atualizar UI
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no login');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
+        currentUser = data.user;
+        userPurchases = data.user.orders || [];
         updateUI();
-        
         showMessage('Login realizado com sucesso!', 'success');
-        
-        return { success: true, user: userData };
-        
+        return { success: true, user: data.user };
     } catch (error) {
         console.error('Erro no login:', error);
         showError(error.message);
@@ -1105,55 +912,25 @@ async function loginUser(email, password) {
 
 async function registerUser(username, email, password) {
     try {
-        // Simular API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificação básica
-        if (!username || !email || !password) {
-            throw new Error('Preencha todos os campos');
-        }
-        
-        if (username.length < 3) {
-            throw new Error('Nome de usuário deve ter pelo menos 3 caracteres');
-        }
-        
-        if (!email.includes('@')) {
-            throw new Error('Email inválido');
-        }
-        
-        if (password.length < 6) {
-            throw new Error('Senha deve ter pelo menos 6 caracteres');
-        }
-        
-        // Criar usuário
-        const userData = {
-            id: 'user_' + Date.now(),
-            username: username,
-            email: email,
-            profile: {
-                avatar: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=00ff88&color=0a0a15'
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-            // Definir como admin se for email especial
-            isAdmin: email === 'admin@luaworks.dev' || username === 'admin',
-            joinDate: new Date().toISOString()
-        };
-        
-        // Salvar token e dados do usuário
-        const token = 'token_' + Math.random().toString(36).substr(2);
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_data', JSON.stringify(userData));
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no registro');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
         localStorage.setItem('user_purchases', '[]');
-        
-        currentUser = userData;
+        currentUser = data.user;
         userPurchases = [];
-        
-        // Atualizar UI
         updateUI();
-        
         showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
-        
-        return { success: true, user: userData };
-        
+        return { success: true, user: data.user };
     } catch (error) {
         console.error('Erro no registro:', error);
         showError(error.message);
@@ -1164,59 +941,49 @@ async function registerUser(username, email, password) {
 function logoutUser() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
+    localStorage.removeItem('user_purchases');
     currentUser = null;
     userPurchases = [];
-    
     updateUI();
     showMessage('Logout realizado com sucesso!', 'info');
 }
 
-// ==================== FUNÇÕES UTILITÁRIAS ====================
 function setupEventListeners() {
-    // Fechar modal
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', function() {
             const modal = this.closest('.modal');
             if (modal && modal.id === 'paymentModal') {
                 closePaymentModal();
+            } else if (modal && modal.id === 'downloadModal') {
+                closeDownloadModal();
             } else if (modal) {
                 closeModal(modal.id);
             }
         });
     });
-    
-    // Fechar modal ao clicar fora
     document.getElementById('paymentModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) {
             closePaymentModal();
         }
     });
-    
-    // Botão de confirmar pagamento
     const confirmBtn = document.getElementById('confirmPaymentBtn');
     if (confirmBtn) {
         confirmBtn.addEventListener('click', confirmPayment);
     }
-    
-    // Botão de copiar endereço
     window.copyWalletAddress = function() {
         const address = document.getElementById('walletAddress')?.textContent;
         if (!address || address === 'Selecione uma moeda acima') {
             showError('Selecione uma moeda primeiro');
             return;
         }
-        
         navigator.clipboard.writeText(address).then(() => {
             showMessage('Endereço copiado para a área de transferência!', 'success');
-            
-            // Feedback visual no botão
             const copyBtn = document.querySelector('.copy-btn');
             if (copyBtn) {
                 const originalText = copyBtn.innerHTML;
                 copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
                 copyBtn.style.background = 'var(--success)';
                 copyBtn.style.color = 'var(--darker-bg)';
-                
                 setTimeout(() => {
                     copyBtn.innerHTML = originalText;
                     copyBtn.style.background = '';
@@ -1225,39 +992,27 @@ function setupEventListeners() {
             }
         }).catch(err => {
             console.error('Erro ao copiar:', err);
-            
-            // Fallback para navegadores antigos
             const textArea = document.createElement('textarea');
             textArea.value = address;
             document.body.appendChild(textArea);
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            
             showMessage('Endereço copiado!', 'success');
         });
     };
-    
-    // Filtros de produtos
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Ativar botão clicado
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            
-            // Filtrar produtos
             const filter = this.dataset.filter;
             filterProducts(filter);
         });
     });
-    
-    // Menu mobile
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', toggleMobileMenu);
     }
-    
-    // Fechar menu ao clicar em link
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -1265,8 +1020,6 @@ function setupEventListeners() {
             }
         });
     });
-    
-    // Fechar menu ao redimensionar
     window.addEventListener('resize', () => {
         const navLinks = document.querySelector('.nav-links');
         if (window.innerWidth > 768 && navLinks && navLinks.style.display === 'flex') {
@@ -1277,21 +1030,16 @@ function setupEventListeners() {
             }
         }
     });
-    
-    // Eventos de autenticação
     document.getElementById('loginBtn')?.addEventListener('click', openLoginModal);
     document.getElementById('registerBtn')?.addEventListener('click', openRegisterModal);
     document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
-    
-    // Carrinho
     document.getElementById('cartBtn')?.addEventListener('click', toggleCartModal);
     document.querySelectorAll('.close-cart').forEach(btn => {
         btn.addEventListener('click', closeCartModal);
     });
-    
     document.getElementById('checkoutBtn')?.addEventListener('click', function() {
         closeCartModal();
-        openPaymentModal(); // Checkout do carrinho
+        openPaymentModal();
     });
 }
 
@@ -1299,7 +1047,6 @@ function toggleCartModal() {
     const cartModal = document.getElementById('cartModal');
     cartModal.classList.toggle('active');
     document.body.style.overflow = cartModal.classList.contains('active') ? 'hidden' : 'auto';
-    
     if (cartModal.classList.contains('active')) {
         updateCartModal();
     }
@@ -1312,7 +1059,6 @@ function closeCartModal() {
 }
 
 function setupAnimations() {
-    // Observador de interseção para animações
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -1324,8 +1070,6 @@ function setupAnimations() {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
     });
-    
-    // Observar elementos para animação
     document.querySelectorAll('.product-card, .feature-card, .expertise-item, .stat-card').forEach(el => {
         observer.observe(el);
     });
@@ -1334,16 +1078,12 @@ function setupAnimations() {
 function filterProducts(filter) {
     const productCards = document.querySelectorAll('.product-card');
     const noResults = document.getElementById('noResults');
-    
     let visibleCount = 0;
-    
     productCards.forEach(card => {
         const isUpcoming = card.dataset.upcoming === 'true';
         const category = card.dataset.category;
         const productId = card.dataset.id;
-        
         let show = false;
-        
         switch(filter) {
             case 'all':
                 show = true;
@@ -1358,19 +1098,14 @@ function filterProducts(filter) {
                 show = category === filter && !isUpcoming;
                 break;
         }
-        
         if (show) {
             card.style.display = 'block';
             visibleCount++;
-            
-            // Adicionar delay para animação em cascata
             card.style.animationDelay = `${visibleCount * 0.05}s`;
         } else {
             card.style.display = 'none';
         }
     });
-    
-    // Mostrar mensagem se não houver resultados
     if (noResults) {
         if (visibleCount === 0) {
             noResults.style.display = 'block';
@@ -1378,16 +1113,13 @@ function filterProducts(filter) {
             noResults.style.display = 'none';
         }
     }
-    
     console.log(`Filtro "${filter}" aplicado: ${visibleCount} produtos visíveis`);
 }
 
 function toggleMobileMenu() {
     const navLinks = document.querySelector('.nav-links');
     const menuBtn = document.querySelector('.mobile-menu-btn i');
-    
     if (!navLinks || !menuBtn) return;
-    
     if (navLinks.style.display === 'flex') {
         navLinks.style.display = 'none';
         menuBtn.className = 'fas fa-bars';
@@ -1398,22 +1130,18 @@ function toggleMobileMenu() {
 }
 
 function updateUI() {
-    // Atualizar elementos de autenticação
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const userMenu = document.getElementById('userMenu');
-    
     if (currentUser) {
-        // Usuário logado
         if (loginBtn) loginBtn.style.display = 'none';
         if (registerBtn) registerBtn.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'block';
-        
         if (userMenu) {
             userMenu.innerHTML = `
                 <div class="user-info">
-                    <img src="${currentUser.profile.avatar}" alt="${currentUser.username}" class="user-avatar">
+                    <img src="${currentUser.profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.username)}&background=00ff88&color=000&bold=true&size=256`}" alt="${currentUser.username}" class="user-avatar">
                     <span class="username">${currentUser.username}</span>
                     ${currentUser.isAdmin ? '<span class="admin-badge" style="background: #ff3366; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">ADMIN</span>' : ''}
                 </div>
@@ -1426,29 +1154,23 @@ function updateUI() {
             userMenu.style.display = 'flex';
         }
     } else {
-        // Usuário não logado
         if (loginBtn) loginBtn.style.display = 'block';
         if (registerBtn) registerBtn.style.display = 'block';
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (userMenu) userMenu.style.display = 'none';
     }
-    
-    // Atualizar lista de produtos
     renderProducts();
 }
 
-// ==================== MODAL DE MINHAS COMPRAS ====================
 function openPurchasesModal() {
     if (!currentUser) {
         showError('Você precisa estar logado para ver suas compras');
         return;
     }
-    
     if (userPurchases.length === 0) {
         showMessage('Você ainda não fez nenhuma compra', 'info');
         return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'purchasesModal';
@@ -1464,21 +1186,16 @@ function openPurchasesModal() {
                     <button class="purchase-tab" data-tab="completed">Concluídas</button>
                     <button class="purchase-tab" data-tab="cancelled">Canceladas</button>
                 </div>
-                
                 <div class="purchases-content">
                     <div class="purchases-grid" id="purchasesGrid">
-                        <!-- Compras serão carregadas aqui -->
                     </div>
                 </div>
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1486,14 +1203,10 @@ function openPurchasesModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
-    // Configurar eventos
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('purchasesModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('purchasesModal');
     });
-    
-    // Configurar tabs
     modal.querySelectorAll('.purchase-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             modal.querySelectorAll('.purchase-tab').forEach(t => t.classList.remove('active'));
@@ -1502,21 +1215,16 @@ function openPurchasesModal() {
             renderPurchases(tab);
         });
     });
-    
-    // Renderizar compras iniciais
     renderPurchases('all');
 }
 
 function renderPurchases(filter = 'all') {
     const container = document.getElementById('purchasesGrid');
     if (!container) return;
-    
     let filteredPurchases = userPurchases;
-    
     if (filter !== 'all') {
         filteredPurchases = userPurchases.filter(purchase => purchase.status === filter);
     }
-    
     if (filteredPurchases.length === 0) {
         container.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
@@ -1527,10 +1235,8 @@ function renderPurchases(filter = 'all') {
         `;
         return;
     }
-    
     container.innerHTML = filteredPurchases.map(purchase => {
         const isCartCheckout = purchase.productId === 'cart-checkout';
-        
         return `
             <div class="purchase-card">
                 <div class="purchase-header">
@@ -1542,7 +1248,6 @@ function renderPurchases(filter = 'all') {
                         ${purchase.status === 'completed' ? 'CONCLUÍDO' : purchase.status === 'pending' ? 'PENDENTE' : 'CANCELADO'}
                     </div>
                 </div>
-                
                 ${isCartCheckout ? `
                     <div class="purchase-items">
                         <h5>Itens da Compra:</h5>
@@ -1564,7 +1269,6 @@ function renderPurchases(filter = 'all') {
                         </div>
                     </div>
                 `}
-                
                 <div class="purchase-meta">
                     <div>
                         <i class="fas fa-calendar"></i> ${formatDate(purchase.date)}
@@ -1573,11 +1277,9 @@ function renderPurchases(filter = 'all') {
                         <i class="fas fa-box"></i> ${purchase.items?.length || 1} item(s)
                     </div>
                 </div>
-                
                 <div class="purchase-total">
                     Total: ${purchase.total.toFixed(4)} ${purchase.currency}
                 </div>
-                
                 <div class="purchase-actions">
                     ${purchase.status === 'completed' ? `
                         ${isCartCheckout ? `
@@ -1605,18 +1307,11 @@ function downloadCartPurchase(purchaseId) {
         showError('Compra não encontrada');
         return;
     }
-    
-    // Baixar cada item do carrinho
     purchase.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-            // Simular download
-            setTimeout(() => {
-                showMessage(`Baixando: ${item.name}`, 'info');
-            }, item.productId.charCodeAt(0) % 1000); // Delay variável
-        }
+        setTimeout(() => {
+            downloadProduct(item.productId);
+        }, item.productId.charCodeAt(0) % 1000);
     });
-    
     showMessage('Downloads iniciados! Verifique seus arquivos.', 'success');
 }
 
@@ -1626,16 +1321,13 @@ function viewPurchaseDetails(purchaseId) {
         showError('Compra não encontrada');
         return;
     }
-    
     const isCartCheckout = purchase.productId === 'cart-checkout';
-    
     let details = `DETALHES DA COMPRA\n\n`;
     details += `ID: ${purchase.id}\n`;
     details += `Produto: ${purchase.productName}\n`;
     details += `Status: ${purchase.status === 'completed' ? 'Concluído' : purchase.status === 'pending' ? 'Pendente' : 'Cancelado'}\n`;
     details += `Data: ${formatDate(purchase.date)}\n`;
     details += `Valor: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
-    
     if (isCartCheckout) {
         details += `ITENS:\n`;
         purchase.items.forEach((item, index) => {
@@ -1647,23 +1339,18 @@ function viewPurchaseDetails(purchaseId) {
     } else {
         details += `CHAVE DE LICENÇA:\n${purchase.licenseKey}\n\n`;
     }
-    
     details += `RESUMO FINANCEIRO:\n`;
     details += `Subtotal: ${purchase.subtotal.toFixed(4)} ${purchase.currency}\n`;
     details += `Taxa (2%): ${purchase.fee.toFixed(4)} ${purchase.currency}\n`;
     details += `Total: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
-    
     details += `Para suporte, entre em contato:\n`;
     details += `Email: support@luaworks.dev\n`;
     details += `Discord: discord.gg/luaworks`;
-    
     alert(details);
 }
 
-// ==================== MODAIS DE AUTENTICAÇÃO ====================
 function openLoginModal() {
     closeAllModals();
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'loginModal';
@@ -1689,12 +1376,9 @@ function openLoginModal() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1702,18 +1386,14 @@ function openLoginModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
-    // Configurar eventos
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('loginModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('loginModal');
     });
-    
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
-        
         const result = await loginUser(email, password);
         if (result.success) {
             closeModal('loginModal');
@@ -1723,7 +1403,6 @@ function openLoginModal() {
 
 function openRegisterModal() {
     closeAllModals();
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'registerModal';
@@ -1757,12 +1436,9 @@ function openRegisterModal() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1770,25 +1446,20 @@ function openRegisterModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
-    // Configurar eventos
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('registerModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('registerModal');
     });
-    
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('registerUsername').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const confirmPassword = document.getElementById('registerConfirm').value;
-        
         if (password !== confirmPassword) {
             showError('As senhas não coincidem');
             return;
         }
-        
         const result = await registerUser(username, email, password);
         if (result.success) {
             closeModal('registerModal');
@@ -1798,7 +1469,7 @@ function openRegisterModal() {
 
 function closeAllModals() {
     document.querySelectorAll('.modal').forEach(modal => {
-        if (modal.id !== 'paymentModal' && modal.id !== 'cartModal') {
+        if (modal.id !== 'paymentModal' && modal.id !== 'cartModal' && modal.id !== 'downloadModal') {
             modal.remove();
         }
     });
@@ -1808,13 +1479,11 @@ function closeAllModals() {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    
     const modalContent = modal.querySelector('.modal-content');
     if (modalContent) {
         modalContent.style.opacity = '0';
         modalContent.style.transform = 'translateY(-50px)';
     }
-    
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -1822,7 +1491,6 @@ function closeModal(modalId) {
     }, 300);
 }
 
-// ==================== FUNÇÕES AUXILIARES ====================
 function getCategoryColor(category) {
     const colors = {
         'automation': '#00ff88',
@@ -1890,24 +1558,19 @@ function escapeHtml(text) {
 }
 
 function showMessage(message, type = 'info') {
-    // Criar container se não existir
     let container = document.getElementById('messageContainer');
     if (!container) {
         container = document.createElement('div');
         container.id = 'messageContainer';
         document.body.appendChild(container);
     }
-    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     messageDiv.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
         <span>${message}</span>
     `;
-    
     container.appendChild(messageDiv);
-    
-    // Remover após 5 segundos
     setTimeout(() => {
         messageDiv.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
@@ -1922,16 +1585,13 @@ function showError(message) {
     showMessage(message, 'error');
 }
 
-// ==================== FUNÇÕES ADICIONAIS ====================
 function viewProductDetails(productId) {
     const product = products.find(p => p.id === productId) || 
                     upcomingProducts.find(p => p.id === productId);
-    
     if (!product) {
         showError('Produto não encontrado');
         return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'productDetailsModal';
@@ -1965,7 +1625,6 @@ function viewProductDetails(productId) {
                             </div>
                         </div>
                     </div>
-                    
                     <div class="product-details-content">
                         <div class="details-section">
                             <h4><i class="fas fa-star"></i> Recursos Principais</h4>
@@ -1975,7 +1634,6 @@ function viewProductDetails(productId) {
                                 `).join('')}
                             </ul>
                         </div>
-                        
                         <div class="details-section">
                             <h4><i class="fas fa-info-circle"></i> Informações Técnicas</h4>
                             <div class="technical-info">
@@ -1997,7 +1655,6 @@ function viewProductDetails(productId) {
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="details-section">
                             <h4><i class="fas fa-shopping-cart"></i> Comprar</h4>
                             <div class="purchase-actions">
@@ -2025,12 +1682,9 @@ function viewProductDetails(productId) {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -2038,42 +1692,31 @@ function viewProductDetails(productId) {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
-    // Configurar eventos
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('productDetailsModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('productDetailsModal');
     });
 }
 
-// ==================== SISTEMA ADMIN SECRETO ====================
 function setupAdminSystem() {
-    // Detectar sequência de teclas Konami Code
     document.addEventListener('keydown', (e) => {
         adminSequence.push(e.code);
-        
         if (adminSequence.length > adminPassword.length) {
             adminSequence.shift();
         }
-        
         if (JSON.stringify(adminSequence) === JSON.stringify(adminPassword)) {
             activateAdminMode();
         }
     });
-    
-    // Botão secreto no logo (triple-click)
     const logo = document.querySelector('.logo');
     if (logo) {
         let clickCount = 0;
         let clickTimer;
-        
         logo.addEventListener('click', () => {
             clickCount++;
-            
             if (clickTimer) {
                 clearTimeout(clickTimer);
             }
-            
             clickTimer = setTimeout(() => {
                 if (clickCount >= 3) {
                     showAdminAccessPanel();
@@ -2082,8 +1725,6 @@ function setupAdminSystem() {
             }, 500);
         });
     }
-    
-    console.log('Sistema admin secreto carregado');
 }
 
 function activateAdminMode() {
@@ -2091,10 +1732,7 @@ function activateAdminMode() {
         showMessage('Admin: Usuário não tem permissões', 'error');
         return;
     }
-    
     adminEnabled = true;
-    
-    // Adicionar indicador visual
     const indicator = document.createElement('div');
     indicator.id = 'adminIndicator';
     indicator.style.cssText = `
@@ -2115,13 +1753,8 @@ function activateAdminMode() {
     `;
     indicator.innerHTML = '<i class="fas fa-user-secret"></i> ADMIN MODE';
     document.body.appendChild(indicator);
-    
-    // Adicionar botão flutuante
     addAdminFloatingButton();
-    
-    // Mostrar acesso completo
     showMessage('Modo Administrador ativado! Acesso completo liberado.', 'success');
-    
     console.log('Modo admin ativado');
 }
 
@@ -2148,21 +1781,17 @@ function addAdminFloatingButton() {
         transition: all 0.3s ease;
     `;
     floatingBtn.innerHTML = '<i class="fas fa-cogs"></i>';
-    
     floatingBtn.addEventListener('mouseenter', () => {
         floatingBtn.style.transform = 'scale(1.1)';
         floatingBtn.style.boxShadow = '0 8px 25px rgba(255, 51, 102, 0.5)';
     });
-    
     floatingBtn.addEventListener('mouseleave', () => {
         floatingBtn.style.transform = 'scale(1)';
         floatingBtn.style.boxShadow = '0 5px 15px rgba(255, 51, 102, 0.3)';
     });
-    
     floatingBtn.addEventListener('click', function() {
         window.open('admin-dashboard.html', '_blank');
     });
-    
     document.body.appendChild(floatingBtn);
 }
 
@@ -2171,12 +1800,10 @@ function showAdminAccessPanel() {
         showMessage('Faça login primeiro', 'warning');
         return;
     }
-    
     if (!currentUser.isAdmin) {
         showMessage('Acesso negado: Permissões insuficientes', 'error');
         return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'adminAccessModal';
@@ -2185,7 +1812,6 @@ function showAdminAccessPanel() {
         align-items: center;
         justify-content: center;
     `;
-    
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px; background: linear-gradient(135deg, #1a1a2e, #0f0f23);">
             <div class="modal-header" style="border-bottom: 1px solid rgba(255, 51, 102, 0.3);">
@@ -2200,7 +1826,6 @@ function showAdminAccessPanel() {
                     <h3 style="color: #ffffff; margin-bottom: 10px;">Olá, ${currentUser.username}!</h3>
                     <p style="color: #aaccff; margin-bottom: 30px;">Nível de acesso: Administrador</p>
                 </div>
-                
                 <div style="display: grid; gap: 15px; margin-bottom: 30px;">
                     <a href="admin-dashboard.html" target="_blank" class="btn btn-primary" style="justify-content: center; text-decoration: none;">
                         <i class="fas fa-tachometer-alt"></i> Dashboard Admin
@@ -2209,12 +1834,9 @@ function showAdminAccessPanel() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Animar entrada
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -2222,8 +1844,6 @@ function showAdminAccessPanel() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
-    // Configurar eventos
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('adminAccessModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('adminAccessModal');
@@ -2234,10 +1854,8 @@ function showAdminDashboard() {
     window.open('admin-dashboard.html', '_blank');
 }
 
-// Criar usuário admin temporário para testes
 setTimeout(() => {
     if (!currentUser) {
-        // Verificar se já existe usuário admin
         const existingAdmin = localStorage.getItem('lua_works_admin_created');
         if (!existingAdmin) {
             const adminUser = {
@@ -2250,13 +1868,11 @@ setTimeout(() => {
                 isAdmin: true,
                 joinDate: new Date().toISOString()
             };
-            
             const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
             localStorage.setItem('auth_token', adminToken);
             localStorage.setItem('user_data', JSON.stringify(adminUser));
             localStorage.setItem('user_purchases', '[]');
             localStorage.setItem('lua_works_admin_created', 'true');
-            
             console.log('Usuário admin criado automaticamente');
             console.log('Login: admin@luaworks.dev');
             console.log('Senha: qualquer uma (sistema de demonstração)');
@@ -2264,31 +1880,21 @@ setTimeout(() => {
     }
 }, 2000);
 
-// ==================== HOT RELOAD PARA DESENVOLVIMENTO ====================
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // Tentar conectar ao WebSocket para hot reload
     try {
         const socket = new WebSocket('ws://localhost:3001');
-        
         socket.onmessage = (event) => {
             if (event.data === 'reload') {
                 console.log('Recebido comando de recarregar...');
                 location.reload();
             }
         };
-        
         socket.onerror = () => {
-            // Silenciar erro se o servidor de hot reload não estiver rodando
         };
     } catch (e) {
-        // Ignorar erros de WebSocket
     }
-    
-    // Log para desenvolvimento
-    console.log('Modo desenvolvimento ativo');
 }
 
-// ==================== EXPORTAR FUNÇÕES PARA HTML ====================
 window.openPaymentModal = openPaymentModal;
 window.selectCurrency = selectCurrency;
 window.copyWalletAddress = copyWalletAddress;
@@ -2302,18 +1908,14 @@ window.logoutUser = logoutUser;
 window.openLoginModal = openLoginModal;
 window.openRegisterModal = openRegisterModal;
 window.closeModal = closeModal;
-
-// Carrinho
-window.addToCart = addToCart;
-window.removeFromCart = removeFromCart;
-
-// Minhas Compras
-window.openPurchasesModal = openPurchasesModal;
+window.closeDownloadModal = closeDownloadModal;
+window.copyToClipboard = copyToClipboard;
+window.downloadAllFiles = downloadAllFiles;
+window.downloadFile = downloadFile;
 window.downloadCartPurchase = downloadCartPurchase;
 window.viewPurchaseDetails = viewPurchaseDetails;
-
-// Sistema Admin
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.openPurchasesModal = openPurchasesModal;
 window.showAdminAccessPanel = showAdminAccessPanel;
 window.showAdminDashboard = showAdminDashboard;
-
-console.log('Lua Works - main.js carregado com sucesso!');

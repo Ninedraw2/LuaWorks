@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <!-- Header -->
     <header class="nexaverse-header">
         <div class="container">
             <nav class="main-nav">
@@ -30,7 +29,6 @@
                     <a href="#features" class="nav-link">Recursos</a>
                     <a href="#stats" class="nav-link">Estatísticas</a>
                     
-                    <!-- Botões de autenticação -->
                     <div class="auth-buttons">
                         <button id="loginBtn" class="btn btn-secondary">
                             <i class="fas fa-sign-in-alt"></i> Entrar
@@ -51,14 +49,12 @@
             </nav>
         </div>
     </header>
-
-    <!-- Hero Section -->
     <section class="hero-section">
         <div class="container">
             <div class="hero-content">
                 <div class="hero-badge">BETA</div>
                 <h1 class="hero-title">
-                    Scripts Lua <span class="gradient-text">Premium</span> para Roblox
+                    Scripts Lua <span class="gradient-text"></span> para Roblox
                 </h1>
                 <p class="hero-subtitle">
                     Sistema completo para distribuição de scripts Lua profissionais. 
@@ -77,8 +73,6 @@
             <div id="statsContainer" class="stats-container"></div>
         </div>
     </section>
-
-    <!-- About Section -->
     <section id="about" class="about-section">
         <div class="container">
             <div class="section-header">
@@ -138,8 +132,6 @@
             </div>
         </div>
     </section>
-
-    <!-- Features Section -->
     <section id="features" class="features-section">
         <div class="container">
             <div class="section-header">
@@ -174,12 +166,10 @@
             </div>
         </div>
     </section>
-
-    <!-- Products Section -->
     <section id="products" class="products-section">
         <div class="container">
             <div class="section-header">
-                <h2>Scripts Premium</h2>
+                <h2>Scripts</h2>
                 <div class="section-divider"></div>
                 <p class="section-subtitle">Sistemas de automação com código e suporte</p>
             </div>
@@ -195,10 +185,10 @@
             </div>
             
             <div class="products-grid" id="productsGrid">
-                <!-- Produtos carregados via JavaScript -->
+
                 <div class="loading-products">
                     <div class="loader"></div>
-                    <p>Carregando scripts premium...</p>
+                    <p>Carregando scripts...</p>
                 </div>
             </div>
             
@@ -210,7 +200,6 @@
         </div>
     </section>
 
-    <!-- Stats Section -->
     <section id="stats" class="stats-section">
         <div class="container">
             <div class="section-header">
@@ -225,7 +214,7 @@
                         <i class="fas fa-code"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number">6</div>
+                        <div class="stat-number">1</div>
                         <div class="stat-label">Scripts Disponíveis</div>
                     </div>
                 </div>
@@ -253,7 +242,6 @@
         </div>
     </section>
 
-    <!-- Payment Modal -->
     <div class="modal" id="paymentModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -273,7 +261,6 @@
                     <h3><i class="fas fa-wallet"></i> Escolha sua Criptomoeda</h3>
                     
                     <div class="currencies-grid" id="currenciesGrid">
-                        <!-- Moedas carregadas via JavaScript -->
                     </div>
                     
                     <div class="selected-wallet" id="selectedWallet">
@@ -323,8 +310,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Footer -->
     <footer class="nexaverse-footer">
         <div class="container">
             <div class="footer-content">
@@ -337,7 +322,7 @@
                         <div class="logo-tag">Beta</div>
                     </div>
                     <p class="footer-mission">
-                        Scripts Lua premium em desenvolvimento.
+                        Scripts em desenvolvimento.
                     </p>
                     <div class="social-links">
                         <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
@@ -385,10 +370,8 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
     <script src="js/main.js"></script>
     
-    <!-- Script de inicialização -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -402,9 +385,8 @@
             
             const token = localStorage.getItem('auth_token');
             if (token) {
-                console.log('Token encontrado, verificando sessão...');
             }
         });
     </script>
 </body>
-</html>
+<html>

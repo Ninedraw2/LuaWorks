@@ -28,10 +28,110 @@
       "createdAt": "2026-01-15T13:08:07.630Z",
       "lastLogin": "2026-01-16T19:02:09.824Z",
       "lastActive": "2026-01-16T19:02:09.824Z",
-      "isAdmin": true,
+      "isAdmin": false,
       "isVerified": false,
       "twoFactorEnabled": false,
       "apiKey": "lw_cead0e2b1a54a38284b984bc0cc8b214"
+    },
+    {
+      "id": "admin-1768693249708",
+      "username": "admin",
+      "email": "admin@luaworks.dev",
+      "password": "$2a$12$.gYCn4P/I43PMbEpNn9g/O5CZt4mBD8T12NIQqYg.g3ytTpOD2yhq",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=admin&background=00ff88&color=000&bold=true&size=256",
+        "bio": "Administrador principal do sistema Lua Works",
+        "location": "Brasil",
+        "website": "https://luaworks.dev",
+        "social": {
+          "discord": "",
+          "github": "",
+          "twitter": ""
+        }
+      },
+      "preferences": {
+        "theme": "dark",
+        "currency": "BTC",
+        "notifications": true,
+        "newsletter": false,
+        "language": "pt-BR"
+      },
+      "orders": [],
+      "downloads": [],
+      "createdAt": "2026-01-17T23:40:49.708Z",
+      "lastLogin": "2026-01-17T23:51:53.499Z",
+      "lastActive": "2026-01-17T23:51:53.504Z",
+      "isAdmin": false,
+      "isVerified": true,
+      "twoFactorEnabled": false,
+      "apiKey": "lw_895a39354f888b0b0ce18d63e55c8250"
+    },
+    {
+      "id": "admin-1768693510048",
+      "username": "FISHNINETEEN1909",
+      "email": "admin@luaworks.dev",
+      "password": "$2a$12$GQW6LK5S59KsjTXvDI2UE.wdBs5AVKyUps5HJOgonBY4n4EejcfoW",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=FISHNINETEEN1909&background=00ff88&color=000&bold=true&size=256",
+        "bio": "Administrador principal do sistema Lua Works",
+        "location": "Brasil",
+        "website": "https://luaworks.dev",
+        "social": {
+          "discord": "",
+          "github": "",
+          "twitter": ""
+        }
+      },
+      "preferences": {
+        "theme": "dark",
+        "currency": "BTC",
+        "notifications": true,
+        "newsletter": false,
+        "language": "pt-BR"
+      },
+      "orders": [],
+      "downloads": [],
+      "createdAt": "2026-01-17T23:45:10.049Z",
+      "lastLogin": "2026-01-17T23:45:10.058Z",
+      "lastActive": "2026-01-17T23:45:10.058Z",
+      "isAdmin": false,
+      "isVerified": true,
+      "twoFactorEnabled": false,
+      "apiKey": "lw_66965d137826a921580e18f18edc009c"
+    },
+    {
+      "id": "admin-1768693954180",
+      "username": "FisherMAN1909",
+      "email": "admin@luaworks.dev",
+      "password": "$2a$12$iFTwT1T87P3xCYW9EZHk.uRqCCjtW9lf2z2D2WWPlv3t4AfSkXO4.",
+      "profile": {
+        "avatar": "https://ui-avatars.com/api/?name=FisherMAN1909&background=00ff88&color=000&bold=true&size=256",
+        "bio": "Administrador principal do sistema Lua Works",
+        "location": "Brasil",
+        "website": "https://luaworks.dev",
+        "social": {
+          "discord": "",
+          "github": "",
+          "twitter": ""
+        }
+      },
+      "preferences": {
+        "theme": "dark",
+        "currency": "BTC",
+        "notifications": true,
+        "newsletter": false,
+        "language": "pt-BR"
+      },
+      "orders": [],
+      "downloads": [],
+      "createdAt": "2026-01-17T23:52:34.180Z",
+      "lastLogin": "2026-01-18T00:05:52.306Z",
+      "lastActive": "2026-01-18T00:05:52.306Z",
+      "isAdmin": true,
+      "isVerified": true,
+      "twoFactorEnabled": false,
+      "apiKey": "lw_ce7b482c6b6103c1682e9fda82b0ba04",
+      "lastUpdate": "2026-01-19T21:46:35.654Z"
     }
   ]
 }

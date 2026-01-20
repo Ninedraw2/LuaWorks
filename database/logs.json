@@ -255,6 +255,710 @@
       "userId": "1768482487630",
       "timestamp": "2026-01-17T20:00:40.647Z",
       "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693249716",
+      "event": "ADMIN_CREATED",
+      "details": "Usuário admin inicializado: admin",
+      "userId": "admin-1768693249708",
+      "timestamp": "2026-01-17T23:40:49.716Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693272688",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin admin fez login",
+      "userId": "admin-1768693249708",
+      "timestamp": "2026-01-17T23:41:12.688Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693510064",
+      "event": "ADMIN_CREATED",
+      "details": "Usuário admin inicializado: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:45:10.064Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693579102",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:46:19.102Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693600947",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:46:40.947Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693616164",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:46:56.164Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693621622",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:47:01.622Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693661983",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:47:41.983Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693693096",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:48:13.096Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693781257",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:49:41.257Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693835355",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FISHNINETEEN1909",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-17T23:50:35.355Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693913523",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin admin fez login",
+      "userId": "admin-1768693249708",
+      "timestamp": "2026-01-17T23:51:53.523Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693954189",
+      "event": "ADMIN_CREATED",
+      "details": "Usuário admin inicializado: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-17T23:52:34.189Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768693967696",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin FisherMAN1909 fez login",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-17T23:52:47.696Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694024083",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-17T23:53:44.083Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694038407",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-17T23:53:58.407Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694549965",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:02:29.965Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694549973",
+      "event": "ADMIN_DEMOTED",
+      "details": "Usuário FISHNINETEEN1909 teve privilégios admin removidos",
+      "userId": "admin-1768693510048",
+      "timestamp": "2026-01-18T00:02:29.973Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694582587",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin FisherMAN1909 fez login",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:03:02.587Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694617770",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:03:37.770Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694629921",
+      "event": "LOGIN_FAILED",
+      "details": "Usuário não-admin tentou acessar admin: admin",
+      "userId": "admin-1768693249708",
+      "timestamp": "2026-01-18T00:03:49.921Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694656151",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:04:16.151Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694660949",
+      "event": "LOGIN_FAILED",
+      "details": "Senha incorreta para usuário: FisherMAN1909",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:04:20.949Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694672202",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin FisherMAN1909 fez login",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:04:32.202Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694732336",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:05:32.336Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694752324",
+      "event": "LOGIN_SUCCESS",
+      "details": "Admin FisherMAN1909 fez login",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:05:52.324Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768694765295",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:06:05.295Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768697264747",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:47:44.747Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768697342638",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T00:49:02.638Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768708326125",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T03:52:06.125Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768714227592",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:30:27.592Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768715743980",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:55:43.980Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768715794622",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: DO NOT REEDEM THE CODE",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:56:34.622Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768715874012",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:57:54.012Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768715881941",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: Teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:58:01.941Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768715884331",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: DO NOT REEDEM THE CODE",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T05:58:04.331Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768760334569",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-18T18:18:54.569Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768781209357",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:06:49.357Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768781234717",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:07:14.717Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768781353176",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:09:13.176Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768781470480",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:11:10.480Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768781494684",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:11:34.684Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768783461310-y783j",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:44:21.310Z",
+      "severity": "info"
+    },
+    {
+      "id": "LOG-1768783544423-xyt1c",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: DO NOT REEDEM THE CODE",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:45:44.423Z",
+      "severity": "info"
+    },
+    {
+      "id": "LOG-1768783555481-wilw4",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T00:45:55.481Z",
+      "severity": "info"
+    },
+    {
+      "id": "LOG-1768848921043",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T18:55:21.043Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768855991042",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T20:53:11.042Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768856061345",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T20:54:21.345Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768857709130",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:21:49.130Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768857719884",
+      "event": "FILE_DELETED",
+      "details": "Arquivo removido: /uploads/SIM_1768849763326.zip",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:21:59.884Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857719889",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: DO NOT REEDEM THE CODE",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:21:59.889Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857737797",
+      "event": "FILE_UPLOADED",
+      "details": "Arquivo enviado: SIM.zip (22 bytes)",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:22:17.797Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857737849",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:22:17.849Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857769063",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:22:49.063Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857769284",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:22:49.284Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857781533",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:23:01.533Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857781643",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:23:01.643Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857830522",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:23:50.522Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768857832590",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:23:52.590Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857832707",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:23:52.707Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857865512",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:24:25.512Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768857870155",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:24:30.155Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857870368",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:24:30.368Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857877534",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:24:37.534Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857877697",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:24:37.697Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857902440",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:25:02.440Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768857908038",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:25:08.038Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857908142",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:25:08.142Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768857970121",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:26:10.121Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768858518243",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:35:18.243Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768858526935",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:35:26.935Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858527142",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:35:27.142Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858541071",
+      "event": "FILE_DELETED",
+      "details": "Arquivo removido: /uploads/SIM_1768857737790_t1ckem.zip",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:35:41.071Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858541077",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:35:41.077Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858673188",
+      "event": "FILE_UPLOADED",
+      "details": "Arquivo enviado: teste.zip (375 bytes)",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:37:53.188Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858673255",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:37:53.255Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858695241",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:38:15.241Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858695432",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: teste",
+      "userId": null,
+      "timestamp": "2026-01-19T21:38:15.432Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858720931",
+      "event": "FILE_DELETED",
+      "details": "Arquivo removido: /uploads/teste_1768858673168_6i26jm.zip",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:38:40.931Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768858720940",
+      "event": "PRODUCT_DELETED",
+      "details": "Produto excluído: teste",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:38:40.940Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859167515",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:46:07.516Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768859195659",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:46:35.659Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1768859244354",
+      "event": "FILE_UPLOADED",
+      "details": "Arquivo enviado: teste.zip (375 bytes)",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:47:24.354Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859244436",
+      "event": "PRODUCT_ADDED",
+      "details": "Produto adicionado: aa",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-19T21:47:24.436Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859282390",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-19T21:48:02.391Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859282581",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-19T21:48:02.581Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859290446",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-19T21:48:10.446Z",
+      "ip": "::1"
+    },
+    {
+      "id": "LOG-1768859290786",
+      "event": "PRODUCT_DOWNLOADED",
+      "details": "Produto baixado: aa",
+      "userId": null,
+      "timestamp": "2026-01-19T21:48:10.786Z",
+      "ip": "::1"
     }
   ]
 }

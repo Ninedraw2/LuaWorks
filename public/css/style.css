@@ -1,4 +1,4 @@
-/* ===== RESET & BASE STYLES ===== */
+
 * {
     margin: 0;
     padding: 0;
@@ -55,7 +55,6 @@ body {
     padding: 0 var(--spacing-sm);
 }
 
-/* ===== TYPOGRAPHY ===== */
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     font-weight: 700;
@@ -112,7 +111,6 @@ p {
     50% { background-position: 100% 50%; }
 }
 
-/* ===== BUTTONS ===== */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -214,7 +212,6 @@ p {
     width: 100%;
 }
 
-/* ===== HEADER ===== */
 .nexaverse-header {
     position: fixed;
     top: 0;
@@ -388,7 +385,6 @@ p {
     cursor: pointer;
 }
 
-/* ===== HERO SECTION ===== */
 .hero-section {
     padding: 180px 0 100px;
     position: relative;
@@ -485,7 +481,6 @@ p {
     margin-top: 40px;
 }
 
-/* ===== ABOUT SECTION ===== */
 .about-section {
     padding: 100px 0;
     background: rgba(10, 10, 21, 0.5);
@@ -601,7 +596,6 @@ p {
     line-height: 1.8;
 }
 
-/* ===== FEATURES SECTION ===== */
 .features-section {
     padding: 100px 0;
 }
@@ -644,7 +638,6 @@ p {
     font-size: 1rem;
 }
 
-/* ===== PRODUCTS SECTION ===== */
 .products-section {
     padding: 100px 0;
     background: rgba(10, 10, 21, 0.5);
@@ -902,7 +895,6 @@ p {
     font-size: 0.85rem;
 }
 
-/* ===== STATS SECTION ===== */
 .stats-section {
     padding: 100px 0;
     background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(0, 153, 255, 0.05));
@@ -948,7 +940,6 @@ p {
     letter-spacing: 0;
 }
 
-/* ===== MODAL ===== */
 .modal {
     display: none;
     position: fixed;
@@ -1321,7 +1312,6 @@ p {
     justify-content: center;
 }
 
-/* ===== PRODUCT DETAILS MODAL ===== */
 .product-details-header {
     display: flex;
     gap: 30px;
@@ -1474,7 +1464,6 @@ p {
     font-size: 0.9rem;
 }
 
-/* ===== MY PURCHASES MODAL ===== */
 .purchases-tabs {
     display: flex;
     border-bottom: 1px solid var(--card-border);
@@ -1605,7 +1594,6 @@ p {
     font-size: 0.85rem;
 }
 
-/* ===== MESSAGES ===== */
 #messageContainer {
     position: fixed;
     top: 20px;
@@ -1672,7 +1660,6 @@ p {
     }
 }
 
-/* ===== FOOTER ===== */
 .nexaverse-footer {
     background: var(--darker-bg);
     border-top: 1px solid var(--card-border);
@@ -1797,7 +1784,6 @@ p {
     color: var(--primary-color);
 }
 
-/* ===== AUTH MODALS ===== */
 .auth-switch {
     text-align: center;
     margin-top: 20px;
@@ -1843,7 +1829,6 @@ p {
     background: rgba(0, 255, 136, 0.05);
 }
 
-/* ===== OVERLAYS ===== */
 .upcoming-overlay {
     position: absolute;
     top: 0;
@@ -2019,7 +2004,6 @@ p {
     }
 }
 
-/* ===== ANIMATIONS ===== */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -2035,7 +2019,6 @@ p {
     animation: fadeIn 0.6s ease forwards;
 }
 
-/* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
     width: 10px;
 }

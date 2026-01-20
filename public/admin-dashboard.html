@@ -6,7 +6,6 @@
     <title>Dashboard Admin | Lua Works</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* RESET E BASE */
         * {
             margin: 0;
             padding: 0;
@@ -20,13 +19,12 @@
             min-height: 100vh;
         }
         
-        /* LAYOUT SIMPLES */
         .dashboard-wrapper {
             display: flex;
             min-height: 100vh;
         }
         
-        /* SIDEBAR FIXA */
+
         .sidebar {
             width: 250px;
             background: #0a0a15;
@@ -59,7 +57,7 @@
             letter-spacing: 2px;
         }
         
-        /* MENU */
+
         .menu {
             display: flex;
             flex-direction: column;
@@ -92,8 +90,7 @@
             color: #00ff88;
             border-left: 3px solid #00ff88;
         }
-        
-        /* CONTEÚDO PRINCIPAL */
+
         .main-content {
             flex: 1;
             padding: 30px;
@@ -135,7 +132,6 @@
             color: #0a0a15;
         }
         
-        /* CARDS DE ESTATÍSTICAS */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -169,7 +165,6 @@
             font-size: 14px;
         }
         
-        /* TABS SIMPLES */
         .tabs {
             display: flex;
             gap: 10px;
@@ -214,7 +209,6 @@
             to { opacity: 1; }
         }
         
-        /* FORMULÁRIOS */
         .form-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -255,8 +249,113 @@
             min-height: 100px;
             resize: vertical;
         }
+
+        .file-input-container {
+            position: relative;
+        }
         
-        /* TABELAS */
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-input-label:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #00ff88;
+        }
+        
+        .file-input-label.dragover {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00ff88;
+        }
+        
+        .file-input-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-input-icon {
+            font-size: 48px;
+            color: #88aaff;
+        }
+        
+        .file-input-text {
+            color: #aaccff;
+        }
+        
+        .file-input-hint {
+            color: #88aaff;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .file-list {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .file-icon {
+            font-size: 24px;
+            color: #00ff88;
+        }
+        
+        .file-details {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        
+        .file-size {
+            color: #88aaff;
+            font-size: 12px;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
         .table-container {
             overflow-x: auto;
             border-radius: 10px;
@@ -288,7 +387,6 @@
             background: rgba(255, 255, 255, 0.02);
         }
         
-        /* BADGES */
         .badge {
             padding: 5px 12px;
             border-radius: 20px;
@@ -308,8 +406,7 @@
             color: #ffaa00;
             border: 1px solid rgba(255, 170, 0, 0.3);
         }
-        
-        /* BOTÕES */
+
         .btn {
             padding: 10px 20px;
             border: none;
@@ -347,7 +444,7 @@
             font-size: 13px;
         }
         
-        /* MENSAGENS */
+
         .message-container {
             position: fixed;
             top: 20px;
@@ -396,7 +493,7 @@
             color: #0095ff;
         }
         
-        /* LOADING */
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -418,7 +515,36 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* RESPONSIVO */
+
+        .progress-container {
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #0099ff);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #88aaff;
+            margin-top: 5px;
+        }
+        
+
         @media (max-width: 768px) {
             .dashboard-wrapper {
                 flex-direction: column;
@@ -452,9 +578,19 @@
                 overflow-x: auto;
                 flex-wrap: nowrap;
             }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .file-actions {
+                align-self: flex-end;
+            }
         }
         
-        /* UTILITÁRIOS */
+
         .mb-20 { margin-bottom: 20px; }
         .mt-20 { margin-top: 20px; }
         .d-flex { display: flex; }
@@ -467,7 +603,7 @@
 </head>
 <body>
     <div class="dashboard-wrapper">
-        <!-- SIDEBAR -->
+
         <div class="sidebar">
             <div class="logo">
                 <h1>LUA WORKS</h1>
@@ -499,9 +635,9 @@
             </nav>
         </div>
         
-        <!-- CONTEÚDO PRINCIPAL -->
+
         <div class="main-content">
-            <!-- HEADER -->
+
             <div class="header">
                 <div>
                     <h2 id="tabTitle">Dashboard Administrativo</h2>
@@ -518,7 +654,6 @@
                 </div>
             </div>
             
-            <!-- ESTATÍSTICAS -->
             <div class="stats-grid" id="statsGrid">
                 <div class="loading">
                     <div class="loading-spinner"></div>
@@ -526,7 +661,6 @@
                 </div>
             </div>
             
-            <!-- TABS -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
                 <button class="tab-btn" onclick="showTab('add-product')">Adicionar Produto</button>
@@ -535,7 +669,6 @@
                 <button class="tab-btn" onclick="showTab('security')">Segurança</button>
             </div>
             
-            <!-- DASHBOARD -->
             <div id="dashboard" class="tab-content active">
                 <h3 style="margin-bottom: 20px;">Visão Geral do Sistema</h3>
                 <p style="margin-bottom: 20px;">Bem-vindo ao painel administrativo da Lua Works. Aqui você pode gerenciar todos os produtos e monitorar a segurança do sistema.</p>
@@ -551,7 +684,6 @@
                 </div>
             </div>
             
-            <!-- ADICIONAR PRODUTO -->
             <div id="add-product" class="tab-content">
                 <h3 style="margin-bottom: 20px;">Adicionar Novo Produto</h3>
                 
@@ -602,6 +734,37 @@
                         </div>
                         
                         <div class="form-group">
+                            <label>Arquivo do Produto *</label>
+                            <div class="file-input-container">
+                                <input type="file" id="productFile" class="file-input" accept=".zip,.rar,.7z,.tar,.gz,.bz2">
+                                <label for="productFile" class="file-input-label" id="fileInputLabel">
+                                    <div class="file-input-content">
+                                        <i class="fas fa-cloud-upload-alt file-input-icon"></i>
+                                        <div class="file-input-text">
+                                            <span id="fileInputText">Clique para fazer upload ou arraste o arquivo</span>
+                                        </div>
+                                        <div class="file-input-hint">
+                                            Formatos permitidos: .zip, .rar, .7z, .tar, .gz, .bz2
+                                        </div>
+                                        <div class="file-input-hint">
+                                            Tamanho máximo: 100MB
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="progress-container" id="uploadProgress" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <div class="progress-text">
+                                    <span id="progressText">0%</span>
+                                    <span id="speedText"></span>
+                                </div>
+                            </div>
+                            <div class="file-list" id="fileList"></div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 10px;">
                                 <input type="checkbox" id="isUpcoming">
                                 Produto Upcoming (não disponível para venda ainda)
@@ -627,7 +790,6 @@
                 </form>
             </div>
             
-            <!-- PRODUTOS ATIVOS -->
             <div id="products" class="tab-content">
                 <div class="d-flex justify-between align-center mb-20">
                     <h3>Produtos Ativos</h3>
@@ -644,7 +806,6 @@
                 </div>
             </div>
             
-            <!-- PRODUTOS UPCOMING -->
             <div id="upcoming" class="tab-content">
                 <div class="d-flex justify-between align-center mb-20">
                     <h3>Produtos Upcoming</h3>
@@ -661,7 +822,6 @@
                 </div>
             </div>
             
-            <!-- SEGURANÇA -->
             <div id="security" class="tab-content">
                 <h3 style="margin-bottom: 20px;">Monitoramento de Segurança</h3>
                 
@@ -683,42 +843,36 @@
         </div>
     </div>
     
-    <!-- MENSAGENS -->
+
     <div class="message-container" id="messageContainer"></div>
     
     <script>
-        // ==================== CONFIGURAÇÃO ====================
         const API_BASE = '/api/admin';
+        const MAX_FILE_SIZE = 100 * 1024 * 1024;
+        const ALLOWED_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'];
+        
         let currentUser = null;
         let allProducts = [];
+        let currentFile = null;
         
-        // ==================== INICIALIZAÇÃO ====================
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Dashboard inicializando...');
+            console.log('Dashboard inicializando...');
             
-            // Verificar autenticação
             if (!await checkAuth()) {
                 window.location.href = '/admin';
                 return;
             }
             
-            // Configurar usuário
             updateUserInfo();
             updateLastActivity();
-            
-            // Configurar eventos
             setupEventListeners();
-            
-            // Carregar dados iniciais
             await loadInitialData();
             
-            // Mostrar mensagem de boas-vindas
             showMessage('Bem-vindo ao dashboard administrativo!', 'success');
             
-            console.log('✅ Dashboard pronto');
+            console.log('Dashboard pronto');
         });
         
-        // ==================== AUTENTICAÇÃO ====================
         async function checkAuth() {
             const token = localStorage.getItem('lua_works_token');
             const user = localStorage.getItem('lua_works_user');
@@ -737,7 +891,6 @@
                 if (response.ok) {
                     currentUser = JSON.parse(user);
                     
-                    // Verificar se é admin
                     if (!currentUser.isAdmin) {
                         showMessage('Acesso negado. Apenas administradores.', 'error');
                         setTimeout(() => window.location.href = '/', 2000);
@@ -783,8 +936,7 @@
                 window.location.href = '/admin';
             }
         }
-        
-        // ==================== FUNÇÕES DE DADOS ====================
+
         async function loadInitialData() {
             try {
                 await Promise.all([
@@ -860,7 +1012,6 @@
             try {
                 const token = localStorage.getItem('lua_works_token');
                 
-                // Carregar logs
                 const logsRes = await fetch(`${API_BASE}/security-logs`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -872,7 +1023,6 @@
                     showMessage('Erro ao carregar logs de segurança', 'error');
                 }
                 
-                // Carregar estatísticas
                 const statsRes = await fetch(`${API_BASE}/dashboard-stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -890,7 +1040,170 @@
             }
         }
         
-        // ==================== RENDERIZAÇÃO ====================
+        function setupFileUpload() {
+            const fileInput = document.getElementById('productFile');
+            const fileInputLabel = document.getElementById('fileInputLabel');
+            const fileInputText = document.getElementById('fileInputText');
+            
+            if (!fileInput) return;
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileInputLabel.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                fileInputLabel.classList.add('dragover');
+            }
+            
+            function unhighlight() {
+                fileInputLabel.classList.remove('dragover');
+            }
+            
+            fileInputLabel.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect();
+                }
+            }
+        }
+        
+        function handleFileSelect() {
+            const fileInput = document.getElementById('productFile');
+            const fileList = document.getElementById('fileList');
+            
+            if (!fileInput.files.length) return;
+            
+            const file = fileInput.files[0];
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showMessage(`Arquivo muito grande. Tamanho máximo: ${formatBytes(MAX_FILE_SIZE)}`, 'error');
+                fileInput.value = '';
+                return;
+            }
+            
+            const fileName = file.name.toLowerCase();
+            const isValidExtension = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+            
+            if (!isValidExtension) {
+                showMessage(`Formato de arquivo não permitido. Use: ${ALLOWED_EXTENSIONS.join(', ')}`, 'error');
+                fileInput.value = '';
+                return;
+            }
+            
+            currentFile = file;
+            
+            fileList.innerHTML = `
+                <div class="file-item">
+                    <div class="file-info">
+                        <i class="fas fa-file-archive file-icon"></i>
+                        <div class="file-details">
+                            <div class="file-name">${escapeHtml(file.name)}</div>
+                            <div class="file-size">${formatBytes(file.size)}</div>
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm" onclick="removeFile()" title="Remover arquivo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('fileInputText').textContent = 'Clique para substituir ou arraste outro arquivo';
+        }
+        
+        function removeFile() {
+            const fileInput = document.getElementById('productFile');
+            const fileList = document.getElementById('fileList');
+            
+            fileInput.value = '';
+            fileList.innerHTML = '';
+            currentFile = null;
+            
+            document.getElementById('fileInputText').textContent = 'Clique para fazer upload ou arraste o arquivo';
+        }
+        
+        async function uploadFile(file) {
+            return new Promise((resolve, reject) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const xhr = new XMLHttpRequest();
+                const token = localStorage.getItem('lua_works_token');
+                
+                const progressContainer = document.getElementById('uploadProgress');
+                const progressFill = document.getElementById('progressFill');
+                const progressText = document.getElementById('progressText');
+                const speedText = document.getElementById('speedText');
+                
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '0%';
+                progressText.textContent = '0%';
+                speedText.textContent = '';
+                
+                let uploadStartTime = Date.now();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = Math.round(percentComplete) + '%';
+                        
+                        const timeElapsed = (Date.now() - uploadStartTime) / 1000;
+                        const speed = e.loaded / timeElapsed;
+                        
+                        if (timeElapsed > 1) {
+                            speedText.textContent = `${formatBytes(speed)}/s`;
+                        }
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    progressContainer.style.display = 'none';
+                    
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            resolve(response);
+                        } catch (e) {
+                            reject(new Error('Resposta inválida do servidor'));
+                        }
+                    } else {
+                        reject(new Error(`Erro ${xhr.status}: ${xhr.statusText}`));
+                    }
+                });
+                
+                xhr.addEventListener('error', () => {
+                    progressContainer.style.display = 'none';
+                    reject(new Error('Erro de conexão'));
+                });
+                
+                xhr.open('POST', `${API_BASE}/upload-file`);
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.send(formData);
+            });
+        }
+        
         function renderStats(stats) {
             const container = document.getElementById('statsGrid');
             if (!container) return;
@@ -972,6 +1285,7 @@
                             <th>Categoria</th>
                             <th>Preço</th>
                             <th>Downloads</th>
+                            <th>Arquivo</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -991,6 +1305,15 @@
                         <td>${escapeHtml(getCategoryName(product.category))}</td>
                         <td style="font-weight: 600; color: #00ff88;">${product.price} ${product.currency}</td>
                         <td>${product.downloads || 0}</td>
+                        <td>
+                            ${product.fileName ? 
+                                `<span style="display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-file-archive" style="color: #00ff88;"></i>
+                                    ${escapeHtml(product.fileName)}
+                                </span>` : 
+                                '<span style="color: #88aaff;">Nenhum</span>'
+                            }
+                        </td>
                         <td><span class="badge badge-active">Ativo</span></td>
                         <td>
                             <div class="d-flex gap-10">
@@ -1039,6 +1362,7 @@
                             <th>Categoria</th>
                             <th>Preço</th>
                             <th>Data</th>
+                            <th>Arquivo</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -1058,6 +1382,15 @@
                         <td>${escapeHtml(getCategoryName(product.category))}</td>
                         <td style="font-weight: 600; color: #ffaa00;">${product.price} ${product.currency}</td>
                         <td>${formatDate(product.uploadDate)}</td>
+                        <td>
+                            ${product.fileName ? 
+                                `<span style="display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-file-archive" style="color: #ffaa00;"></i>
+                                    ${escapeHtml(product.fileName)}
+                                </span>` : 
+                                '<span style="color: #88aaff;">Nenhum</span>'
+                            }
+                        </td>
                         <td><span class="badge badge-upcoming">Upcoming</span></td>
                         <td>
                             <div class="d-flex gap-10">
@@ -1152,14 +1485,12 @@
             container.innerHTML = html;
         }
         
-        // ==================== FUNÇÕES DE PRODUTOS ====================
         async function addProduct(event) {
             event.preventDefault();
             
             const submitBtn = document.getElementById('submitBtn');
             const originalText = submitBtn.innerHTML;
             
-            // Validar formulário
             const productData = {
                 name: document.getElementById('productName').value.trim(),
                 description: document.getElementById('productDescription').value.trim(),
@@ -1170,7 +1501,6 @@
                 featured: document.getElementById('isFeatured').checked
             };
             
-            // Validação
             if (!productData.name || !productData.description || !productData.category || !productData.price) {
                 showMessage('Preencha todos os campos obrigatórios', 'error');
                 return;
@@ -1181,10 +1511,29 @@
                 return;
             }
             
+            const isEditMode = document.getElementById('addProductForm').dataset.productId;
+            if (!isEditMode && !currentFile) {
+                showMessage('Selecione um arquivo para o produto', 'error');
+                return;
+            }
+            
             try {
-                // Mostrar loading
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
                 submitBtn.disabled = true;
+                
+                let fileUploadResult = null;
+                
+                if (currentFile) {
+                    try {
+                        fileUploadResult = await uploadFile(currentFile);
+                        productData.fileUrl = fileUploadResult.fileUrl;
+                        productData.fileName = fileUploadResult.fileName;
+                        productData.fileSize = fileUploadResult.fileSize;
+                    } catch (error) {
+                        showMessage(`Erro no upload do arquivo: ${error.message}`, 'error');
+                        return;
+                    }
+                }
                 
                 const token = localStorage.getItem('lua_works_token');
                 const response = await fetch(`${API_BASE}/products`, {
@@ -1201,15 +1550,14 @@
                 if (response.ok) {
                     showMessage('Produto adicionado com sucesso!', 'success');
                     document.getElementById('addProductForm').reset();
+                    removeFile(); 
                     
-                    // Recarregar dados
                     await Promise.all([
                         loadProducts(),
                         loadStats(),
                         loadRecentActivity()
                     ]);
                     
-                    // Ir para a tab apropriada
                     showTab(productData.isUpcoming ? 'upcoming' : 'products');
                 } else {
                     showMessage(result.error || 'Erro ao adicionar produto', 'error');
@@ -1218,7 +1566,6 @@
                 console.error('Erro ao adicionar produto:', error);
                 showMessage('Erro de conexão. Tente novamente.', 'error');
             } finally {
-                // Restaurar botão
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
@@ -1231,7 +1578,6 @@
                 return;
             }
             
-            // Preencher formulário
             document.getElementById('productName').value = product.name;
             document.getElementById('productDescription').value = product.description;
             document.getElementById('productCategory').value = product.category;
@@ -1240,17 +1586,35 @@
             document.getElementById('isUpcoming').checked = product.status === 'upcoming';
             document.getElementById('isFeatured').checked = product.featured;
             
-            // Mudar texto do botão
+            const fileList = document.getElementById('fileList');
+            if (product.fileName) {
+                fileList.innerHTML = `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <i class="fas fa-file-archive file-icon"></i>
+                            <div class="file-details">
+                                <div class="file-name">${escapeHtml(product.fileName)}</div>
+                                <div class="file-size">${product.fileSize ? formatBytes(product.fileSize) : 'N/A'}</div>
+                                <div style="color: #88aaff; font-size: 11px; margin-top: 2px;">Arquivo atual do produto</div>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button type="button" class="btn btn-sm" onclick="removeFile()" title="Remover arquivo">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('fileInputText').textContent = 'Clique para substituir ou arraste outro arquivo';
+            }
+            
             document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save"></i> Atualizar Produto';
             
-            // Armazenar ID do produto para atualização
             document.getElementById('addProductForm').dataset.productId = productId;
             
-            // Modificar o evento do formulário
             const form = document.getElementById('addProductForm');
             form.onsubmit = updateProduct;
             
-            // Mostrar tab de adicionar produto
             showTab('add-product');
             
             showMessage('Edite o produto e clique em Atualizar', 'info');
@@ -1276,6 +1640,18 @@
             };
             
             try {
+                if (currentFile) {
+                    try {
+                        const fileUploadResult = await uploadFile(currentFile);
+                        productData.fileUrl = fileUploadResult.fileUrl;
+                        productData.fileName = fileUploadResult.fileName;
+                        productData.fileSize = fileUploadResult.fileSize;
+                    } catch (error) {
+                        showMessage(`Erro no upload do arquivo: ${error.message}`, 'error');
+                        return;
+                    }
+                }
+                
                 const token = localStorage.getItem('lua_works_token');
                 const response = await fetch(`${API_BASE}/products/${productId}`, {
                     method: 'PUT',
@@ -1291,20 +1667,18 @@
                 if (response.ok) {
                     showMessage('Produto atualizado com sucesso!', 'success');
                     document.getElementById('addProductForm').reset();
+                    removeFile();
                     delete document.getElementById('addProductForm').dataset.productId;
                     
-                    // Restaurar evento original
                     const form = document.getElementById('addProductForm');
                     form.onsubmit = addProduct;
                     document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
-                    
-                    // Recarregar dados
+
                     await Promise.all([
                         loadProducts(),
                         loadRecentActivity()
                     ]);
                     
-                    // Ir para a tab apropriada
                     showTab(productData.status === 'upcoming' ? 'upcoming' : 'products');
                 } else {
                     showMessage(result.error || 'Erro ao atualizar produto', 'error');
@@ -1330,7 +1704,6 @@
                 if (response.ok) {
                     showMessage('Produto excluído com sucesso!', 'success');
                     
-                    // Recarregar dados
                     await Promise.all([
                         loadProducts(),
                         loadStats(),
@@ -1374,7 +1747,6 @@
                 if (response.ok) {
                     showMessage('Produto ativado com sucesso!', 'success');
                     
-                    // Recarregar dados
                     await Promise.all([
                         loadProducts(),
                         loadRecentActivity()
@@ -1388,24 +1760,20 @@
             }
         }
         
-        // ==================== FUNÇÕES DE UI ====================
+
         function showTab(tabName) {
-            // Atualizar menu
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('active');
             });
-            
-            // Atualizar tabs
+        
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             
-            // Mostrar tab selecionada
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            
-            // Ativar menu correspondente
+
             const menuItems = document.querySelectorAll('.menu-item');
             menuItems.forEach(item => {
                 if (item.onclick && item.onclick.toString().includes(tabName)) {
@@ -1413,24 +1781,21 @@
                 }
             });
             
-            // Ativar tab correspondente
             document.getElementById(tabName).classList.add('active');
             const tabBtn = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
             if (tabBtn) tabBtn.classList.add('active');
-            
-            // Atualizar título
+
             updateTabTitle(tabName);
-            
-            // Limpar formulário se for adicionar produto
+
             if (tabName === 'add-product') {
                 document.getElementById('addProductForm').reset();
+                removeFile();
                 delete document.getElementById('addProductForm').dataset.productId;
                 document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
                 const form = document.getElementById('addProductForm');
                 form.onsubmit = addProduct;
             }
             
-            // Carregar dados específicos da tab
             if (tabName === 'security') {
                 loadSecurityData();
             } else if (tabName === 'products' || tabName === 'upcoming') {
@@ -1452,13 +1817,11 @@
         }
         
         function setupEventListeners() {
-            // Formulário
             const form = document.getElementById('addProductForm');
             if (form) {
                 form.addEventListener('submit', addProduct);
             }
             
-            // Busca
             const searchInput = document.getElementById('searchProducts');
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
@@ -1466,7 +1829,7 @@
                 });
             }
             
-            // Prevenir envio de formulário com Enter em campos não-submit
+            setupFileUpload();
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && e.target.type !== 'textarea' && e.target.type !== 'submit') {
                     e.preventDefault();
@@ -1482,7 +1845,6 @@
             });
         }
         
-        // ==================== FUNÇÕES UTILITÁRIAS ====================
         function getCategoryName(category) {
             const categories = {
                 'security': 'Segurança',
@@ -1505,13 +1867,14 @@
                 'PRODUCT_ADDED': 'Produto Adicionado',
                 'PRODUCT_UPDATED': 'Produto Atualizado',
                 'PRODUCT_DELETED': 'Produto Excluído',
-                'PRODUCT_ACTIVATED': 'Produto Ativado'
+                'PRODUCT_ACTIVATED': 'Produto Ativado',
+                'FILE_UPLOADED': 'Arquivo Enviado'
             };
             return events[event] || event;
         }
         
         function getLogStatusClass(event) {
-            if (event.includes('SUCCESS') || event.includes('ADDED') || event.includes('UPDATED') || event.includes('REGISTERED')) {
+            if (event.includes('SUCCESS') || event.includes('ADDED') || event.includes('UPDATED') || event.includes('REGISTERED') || event.includes('UPLOADED')) {
                 return 'badge-active';
             }
             if (event.includes('FAILED') || event.includes('DELETED')) {
@@ -1543,6 +1906,18 @@
             }
         }
         
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text || '';
@@ -1560,7 +1935,6 @@
             
             container.appendChild(messageDiv);
             
-            // Remover após 5 segundos
             setTimeout(() => {
                 messageDiv.style.animation = 'slideOut 0.3s ease';
                 setTimeout(() => messageDiv.remove(), 300);
@@ -1575,8 +1949,7 @@
                 default: return 'info-circle';
             }
         }
-        
-        // Adicionar animação de saída
+
         if (!document.querySelector('#message-styles')) {
             const style = document.createElement('style');
             style.id = 'message-styles';
@@ -1589,14 +1962,14 @@
             document.head.appendChild(style);
         }
         
-        // ==================== EXPORTAR FUNÇÕES ====================
         window.showTab = showTab;
         window.logout = logout;
         window.editProduct = editProduct;
         window.deleteProduct = deleteProduct;
         window.activateProduct = activateProduct;
+        window.removeFile = removeFile;
         
-        console.log('✅ JavaScript do dashboard carregado');
+        console.log('JavaScript do dashboard carregado');
     </script>
 </body>
 </html>

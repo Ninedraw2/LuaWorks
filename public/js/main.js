@@ -162,7 +162,7 @@ async function loadUserData() {
     try {
         currentUser = JSON.parse(userData);
         userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
-        if (currentUser.email === 'admin@luaworks.dev' || currentUser.username === 'admin' || currentUser.isAdmin) {
+        if (currentUser.email === 'XXXXXXXXXXXXXXX' || currentUser.username === 'XXXXXX' || currentUser.isAdmin) {
             currentUser.isAdmin = true;
         }
         console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
@@ -1859,9 +1859,9 @@ setTimeout(() => {
         const existingAdmin = localStorage.getItem('lua_works_admin_created');
         if (!existingAdmin) {
             const adminUser = {
-                id: 'admin_001',
-                username: 'admin',
-                email: 'admin@luaworks.dev',
+                id: '***********************8',
+                username: '********',
+                email: '***********8',
                 profile: {
                     avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff3366&color=ffffff'
                 },

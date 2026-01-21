@@ -1215,6 +1215,22 @@
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-20T21:02:26.399Z",
       "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769018295859",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T17:58:15.859Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769018333956",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T17:58:53.956Z",
+      "ip": "127.0.0.1"
     }
   ]
 }

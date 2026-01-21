@@ -651,7 +651,7 @@
     {
       "id": "LOG-1768857719884",
       "event": "FILE_DELETED",
-      "details": "Arquivo removido: /uploads/SIM_1768849763326.zip",
+      "details": "Arquivo removido: &amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;uploads&amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;SIM_1768849763326.zip",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-19T21:21:59.884Z",
       "ip": "::1"
@@ -835,7 +835,7 @@
     {
       "id": "LOG-1768858541071",
       "event": "FILE_DELETED",
-      "details": "Arquivo removido: /uploads/SIM_1768857737790_t1ckem.zip",
+      "details": "Arquivo removido: &amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;uploads&amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;SIM_1768857737790_t1ckem.zip",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-19T21:35:41.071Z",
       "ip": "::1"
@@ -883,7 +883,7 @@
     {
       "id": "LOG-1768858720931",
       "event": "FILE_DELETED",
-      "details": "Arquivo removido: /uploads/teste_1768858673168_6i26jm.zip",
+      "details": "Arquivo removido: &amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;uploads&amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;teste_1768858673168_6i26jm.zip",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-19T21:38:40.931Z",
       "ip": "::1"
@@ -1083,7 +1083,7 @@
     {
       "id": "LOG-1768928502463",
       "event": "FILE_DELETED",
-      "details": "Arquivo removido: /uploads/teste_1768859244343_we0r6q.zip",
+      "details": "Arquivo removido: &amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;uploads&amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;teste_1768859244343_we0r6q.zip",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-20T17:01:42.463Z",
       "ip": "::1"
@@ -1171,7 +1171,7 @@
     {
       "id": "LOG-1768937801157",
       "event": "FILE_DELETED",
-      "details": "Arquivo removido: /uploads/teste_1768937763390_1m62zf.zip",
+      "details": "Arquivo removido: &amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;uploads&amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;amp;#x2F;teste_1768937763390_1m62zf.zip",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-20T19:36:41.157Z",
       "ip": "::1"
@@ -1230,6 +1230,70 @@
       "details": "Credenciais do admin atualizadas",
       "userId": "admin-1768693954180",
       "timestamp": "2026-01-21T17:58:53.956Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769020475953-0c583c8bd7ae",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:34:35.953Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769020656942-85036c2be259",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:37:36.943Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769020698911-ec37f65938b5",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:38:18.912Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769020719540",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:38:39.540Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769020754114",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:39:14.114Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769021228140-07eba753a5c0",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:47:08.143Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769021299417-c8c034afe118",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:48:19.417Z",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "LOG-1769021533085-06e51798d53d",
+      "event": "ADMIN_UPDATED",
+      "details": "Credenciais do admin atualizadas",
+      "userId": "admin-1768693954180",
+      "timestamp": "2026-01-21T18:52:13.086Z",
       "ip": "127.0.0.1"
     }
   ]

@@ -10,28 +10,108 @@ let cart = [];
 let isCheckoutModal = false;
 let adminEnabled = false;
 let adminSequence = [];
-
-const sampleUpcoming = [];
-
-const adminPassword = ["KeyA", "KeyB", "KeyC", "KeyD", "KeyE"];
+const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
 
 const sampleProducts = [
     {
-        id: 'autobot-pro',
-        name: 'AutoBot Pro',
-        description: 'Sistema de automação avançado para Roblox',
-        price: '0.0025',
-        currency: 'BTC',
+        id: 'auto-farm-1',
+        name: 'Auto Farm Supreme',
+        description: 'Sistema de farm automático com anti-ban avançado',
         category: 'automation',
-        features: ['Anti-ban system', 'Auto-update', '24/7 suporte'],
+        price: '0.005',
+        currency: 'BTC',
+        originalPrice: '0.008',
+        discount: 37,
         rating: 4.8,
         downloads: 124,
         version: '2.1',
-        fileSize: '1.2MB',
-        uploadDate: new Date().toISOString(),
-        featured: true
+        fileSize: '15KB',
+        features: ['Anti-ban system', 'Multi-threaded', 'Auto-update', 'GUI configurável'],
+        uploadDate: '2024-01-15',
+        featured: true,
+        status: 'available'
+    },
+    {
+        id: 'bot-system-1',
+        name: 'Bot Manager Pro',
+        description: 'Gerenciador de múltiplos bots simultâneos',
+        category: 'bot',
+        price: '0.008',
+        currency: 'BTC',
+        rating: 4.5,
+        downloads: 89,
+        version: '1.3',
+        fileSize: '25KB',
+        features: ['Multi-account', 'Proxy support', 'Task scheduler', 'Log system'],
+        uploadDate: '2024-01-10',
+        status: 'available'
+    },
+    {
+        id: 'sys-optimizer',
+        name: 'System Optimizer',
+        description: 'Otimizador de performance para scripts Lua',
+        category: 'system',
+        price: '0.003',
+        currency: 'BTC',
+        rating: 4.9,
+        downloads: 210,
+        version: '3.0',
+        fileSize: '8KB',
+        features: ['FPS boost', 'Memory optimizer', 'Cache system', 'Error handler'],
+        uploadDate: '2024-01-05',
+        status: 'available'
+    },
+    {
+        id: 'utility-pack',
+        name: 'Utility Pack Deluxe',
+        description: 'Coleção de utilitários para desenvolvimento',
+        category: 'utility',
+        price: '0.006',
+        currency: 'BTC',
+        originalPrice: '0.010',
+        discount: 40,
+        rating: 4.7,
+        downloads: 156,
+        version: '1.5',
+        fileSize: '30KB',
+        features: ['Debug tools', 'Code formatter', 'Library manager', 'Template system'],
+        uploadDate: '2024-01-12',
+        featured: true,
+        status: 'available'
+    },
+    {
+        id: 'security-suite',
+        name: 'Security Suite Pro',
+        description: 'Pacote completo de segurança para scripts',
+        category: 'tool',
+        price: '0.009',
+        currency: 'BTC',
+        rating: 4.6,
+        downloads: 78,
+        version: '2.2',
+        fileSize: '20KB',
+        features: ['Encryption', 'Obfuscation', 'License system', 'Anti-tamper'],
+        uploadDate: '2024-01-08',
+        status: 'available'
+    },
+    {
+        id: 'ai-assistant',
+        name: 'AI Assistant Beta',
+        description: 'Assistente de IA para desenvolvimento Lua',
+        category: 'automation',
+        price: '0.012',
+        currency: 'BTC',
+        rating: 4.4,
+        downloads: 45,
+        version: '0.9',
+        fileSize: '50KB',
+        features: ['Code suggestions', 'Error detection', 'Auto-complete', 'Learning system'],
+        uploadDate: '2024-01-18',
+        status: 'available'
     }
 ];
+
+const sampleUpcoming = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Lua Works - Inicializando sistema...');
@@ -80,22 +160,8 @@ async function loadUserData() {
     if (!token || !userData) return;
     
     try {
-        const encryptedData = localStorage.getItem('encrypted_user_data');
-        if (encryptedData) {
-            const decrypted = CryptoJS.AES.decrypt(encryptedData, 'secure-key-2026').toString(CryptoJS.enc.Utf8);
-            currentUser = JSON.parse(decrypted);
-        } else {
-            currentUser = JSON.parse(userData);
-        }
-        
-        const encryptedPurchases = localStorage.getItem('encrypted_purchases');
-        if (encryptedPurchases) {
-            const decrypted = CryptoJS.AES.decrypt(encryptedPurchases, 'secure-key-2026').toString(CryptoJS.enc.Utf8);
-            userPurchases = JSON.parse(decrypted || '[]');
-        } else {
-            userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
-        }
-        
+        currentUser = JSON.parse(userData);
+        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
         if (currentUser.email === 'XXXXXXXXXXXXXXX' || currentUser.username === 'XXXXXX' || currentUser.isAdmin) {
             currentUser.isAdmin = true;
         }
@@ -640,8 +706,7 @@ async function processSinglePurchase() {
         total: parseFloat(selectedProduct.price) * 1.02
     };
     userPurchases.push(newPurchase);
-    const encrypted = CryptoJS.AES.encrypt(JSON.stringify(userPurchases), 'secure-key-2026').toString();
-    localStorage.setItem('encrypted_purchases', encrypted);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
     showPaymentSuccess({
         order: newPurchase
     });
@@ -694,8 +759,7 @@ async function processCartCheckout() {
         };
         userPurchases.push(productPurchase);
     });
-    const encrypted = CryptoJS.AES.encrypt(JSON.stringify(userPurchases), 'secure-key-2026').toString();
-    localStorage.setItem('encrypted_purchases', encrypted);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
     cart = [];
     saveCart();
     updateCartModal();
@@ -832,11 +896,8 @@ async function loginUser(email, password) {
             throw new Error(data.error || 'Erro no login');
         }
         localStorage.setItem('auth_token', data.token);
-        const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(data.user), 'secure-key-2026').toString();
-        localStorage.setItem('encrypted_user_data', encryptedUser);
         localStorage.setItem('user_data', JSON.stringify(data.user));
-        const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify(data.user.orders || []), 'secure-key-2026').toString();
-        localStorage.setItem('encrypted_purchases', encryptedOrders);
+        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
         currentUser = data.user;
         userPurchases = data.user.orders || [];
         updateUI();
@@ -863,11 +924,8 @@ async function registerUser(username, email, password) {
             throw new Error(data.error || 'Erro no registro');
         }
         localStorage.setItem('auth_token', data.token);
-        const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(data.user), 'secure-key-2026').toString();
-        localStorage.setItem('encrypted_user_data', encryptedUser);
         localStorage.setItem('user_data', JSON.stringify(data.user));
-        const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify([]), 'secure-key-2026').toString();
-        localStorage.setItem('encrypted_purchases', encryptedOrders);
+        localStorage.setItem('user_purchases', '[]');
         currentUser = data.user;
         userPurchases = [];
         updateUI();
@@ -883,8 +941,6 @@ async function registerUser(username, email, password) {
 function logoutUser() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
-    localStorage.removeItem('encrypted_user_data');
-    localStorage.removeItem('encrypted_purchases');
     localStorage.removeItem('user_purchases');
     currentUser = null;
     userPurchases = [];
@@ -1814,11 +1870,8 @@ setTimeout(() => {
             };
             const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
             localStorage.setItem('auth_token', adminToken);
-            const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(adminUser), 'secure-key-2026').toString();
-            localStorage.setItem('encrypted_user_data', encryptedUser);
             localStorage.setItem('user_data', JSON.stringify(adminUser));
-            const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify([]), 'secure-key-2026').toString();
-            localStorage.setItem('encrypted_purchases', encryptedOrders);
+            localStorage.setItem('user_purchases', '[]');
             localStorage.setItem('lua_works_admin_created', 'true');
         }
     }
@@ -1862,4 +1915,4 @@ window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.openPurchasesModal = openPurchasesModal;
 window.showAdminAccessPanel = showAdminAccessPanel;
-window.showAdminDashboard = showAdminDashboard;
+window.showAdminDashboard = showAdminDashboard;cle

@@ -1,679 +1,231 @@
-const express = require('express');
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-const multer = require('multer');
-const crypto = require('crypto');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
-const hpp = require('hpp');
-const validator = require('validator');
-require('dotenv').config();
+const API_BASE = '/api';
+let products = [];
+let upcomingProducts = [];
+let currencies = [];
+let selectedProduct = null;
+let selectedCurrency = null;
+let currentUser = null;
+let userPurchases = [];
+let cart = [];
+let isCheckoutModal = false;
+let adminEnabled = false;
+let adminSequence = [];
+const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || crypto.randomBytes(128).toString('base64');
-
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'laila.cypher19@proton.me';
-
-const DB_PATH = path.join(__dirname, 'database');
-const UPLOADS_PATH = path.join(__dirname, 'uploads');
-const PUBLIC_PATH = path.join(__dirname, 'public');
-const WHITELISTED_IPS = (process.env.WHITELISTED_IPS || '').split(',').filter(ip => ip.trim());
-const BLACKLISTED_IPS = (process.env.BLACKLISTED_IPS || '').split(',').filter(ip => ip.trim());
-
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Muitas requisições deste IP, tente novamente mais tarde.',
-    skipSuccessfulRequests: false
-});
-
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 5,
-    message: 'Muitas tentativas de login, tente novamente em uma hora.',
-    skipSuccessfulRequests: false
-});
-
-const adminLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 30,
-    message: 'Muitas requisições administrativas, tente novamente mais tarde.',
-    skipSuccessfulRequests: false
-});
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, UPLOADS_PATH);
+const sampleProducts = [
+    {
+        id: 'auto-farm-1',
+        name: 'Auto Farm Supreme',
+        description: 'Sistema de farm automático com anti-ban avançado',
+        category: 'automation',
+        price: '0.005',
+        currency: 'BTC',
+        originalPrice: '0.008',
+        discount: 37,
+        rating: 4.8,
+        downloads: 124,
+        version: '2.1',
+        fileSize: '15KB',
+        features: ['Anti-ban system', 'Multi-threaded', 'Auto-update', 'GUI configurável'],
+        uploadDate: '2024-01-15',
+        featured: true,
+        status: 'available'
     },
-    filename: (req, file, cb) => {
-        const timestamp = Date.now();
-        const random = crypto.randomBytes(8).toString('hex');
-        const originalName = path.parse(file.originalname).name;
-        const extension = path.extname(file.originalname);
-        const sanitizedName = originalName.replace(/[^a-zA-Z0-9]/g, '_');
-        const uniqueName = `${sanitizedName}_${timestamp}_${random}${extension}`;
-        cb(null, uniqueName);
-    }
-});
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 100 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md', '.lua'];
-        const extname = path.extname(file.originalname).toLowerCase();
-        if (allowedTypes.includes(extname)) {
-            cb(null, true);
-        } else {
-            cb(new Error(`Tipo de arquivo não permitido. Formatos: ${allowedTypes.join(', ')}`));
-        }
-    }
-});
-
-function validateInput(input, type) {
-    if (!input) return false;
-    
-    switch(type) {
-        case 'email':
-            return validator.isEmail(input) && validator.isLength(input, { max: 255 });
-        case 'username':
-            return validator.isAlphanumeric(input.replace(/[_-]/g, '')) && 
-                   validator.isLength(input, { min: 3, max: 20 });
-        case 'password':
-            return validator.isLength(input, { min: 8 }) &&
-                   /[A-Z]/.test(input) &&
-                   /[a-z]/.test(input) &&
-                   /[0-9]/.test(input) &&
-                   /[^A-Za-z0-9]/.test(input);
-        case 'text':
-            return validator.isLength(input, { max: 1000 }) &&
-                   !/<script|javascript:|on\w+\s*=/.test(input.toLowerCase());
-        case 'filename':
-            return validator.isLength(input, { max: 255 }) &&
-                   !/[<>:"/\\|?*]/.test(input) &&
-                   !input.includes('..');
-        default:
-            return validator.isLength(input, { max: 500 });
-    }
-}
-
-function ipSecurityMiddleware(req, res, next) {
-    const clientIp = req.ip || req.connection.remoteAddress;
-    
-    if (BLACKLISTED_IPS.includes(clientIp)) {
-        return res.status(403).json({ error: 'Acesso bloqueado' });
-    }
-    
-    if (WHITELISTED_IPS.length > 0 && !WHITELISTED_IPS.includes(clientIp)) {
-        return res.status(403).json({ error: 'Acesso não autorizado' });
-    }
-    
-    next();
-}
-
-function sanitizeData(data) {
-    if (typeof data === 'string') {
-        return validator.escape(data.replace(/<[^>]*>?/gm, ''));
-    }
-    if (Array.isArray(data)) {
-        return data.map(item => sanitizeData(item));
-    }
-    if (typeof data === 'object' && data !== null) {
-        const sanitized = {};
-        for (const key in data) {
-            sanitized[key] = sanitizeData(data[key]);
-        }
-        return sanitized;
-    }
-    return data;
-}
-
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'"],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"]
-        }
+    {
+        id: 'bot-system-1',
+        name: 'Bot Manager Pro',
+        description: 'Gerenciador de múltiplos bots simultâneos',
+        category: 'bot',
+        price: '0.008',
+        currency: 'BTC',
+        rating: 4.5,
+        downloads: 89,
+        version: '1.3',
+        fileSize: '25KB',
+        features: ['Multi-account', 'Proxy support', 'Task scheduler', 'Log system'],
+        uploadDate: '2024-01-10',
+        status: 'available'
     },
-    hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
+    {
+        id: 'sys-optimizer',
+        name: 'System Optimizer',
+        description: 'Otimizador de performance para scripts Lua',
+        category: 'system',
+        price: '0.003',
+        currency: 'BTC',
+        rating: 4.9,
+        downloads: 210,
+        version: '3.0',
+        fileSize: '8KB',
+        features: ['FPS boost', 'Memory optimizer', 'Cache system', 'Error handler'],
+        uploadDate: '2024-01-05',
+        status: 'available'
     },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
-}));
-
-app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
-
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(mongoSanitize());
-app.use(hpp());
-app.use(ipSecurityMiddleware);
-
-app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
-app.use('/api/admin/', adminLimiter);
-
-app.use(express.static(PUBLIC_PATH, {
-    setHeaders: (res, path) => {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Frame-Options', 'DENY');
-        res.setHeader('X-XSS-Protection', '1; mode=block');
+    {
+        id: 'utility-pack',
+        name: 'Utility Pack Deluxe',
+        description: 'Coleção de utilitários para desenvolvimento',
+        category: 'utility',
+        price: '0.006',
+        currency: 'BTC',
+        originalPrice: '0.010',
+        discount: 40,
+        rating: 4.7,
+        downloads: 156,
+        version: '1.5',
+        fileSize: '30KB',
+        features: ['Debug tools', 'Code formatter', 'Library manager', 'Template system'],
+        uploadDate: '2024-01-12',
+        featured: true,
+        status: 'available'
+    },
+    {
+        id: 'security-suite',
+        name: 'Security Suite Pro',
+        description: 'Pacote completo de segurança para scripts',
+        category: 'tool',
+        price: '0.009',
+        currency: 'BTC',
+        rating: 4.6,
+        downloads: 78,
+        version: '2.2',
+        fileSize: '20KB',
+        features: ['Encryption', 'Obfuscation', 'License system', 'Anti-tamper'],
+        uploadDate: '2024-01-08',
+        status: 'available'
+    },
+    {
+        id: 'ai-assistant',
+        name: 'AI Assistant Beta',
+        description: 'Assistente de IA para desenvolvimento Lua',
+        category: 'automation',
+        price: '0.012',
+        currency: 'BTC',
+        rating: 4.4,
+        downloads: 45,
+        version: '0.9',
+        fileSize: '50KB',
+        features: ['Code suggestions', 'Error detection', 'Auto-complete', 'Learning system'],
+        uploadDate: '2024-01-18',
+        status: 'available'
     }
-}));
-app.use('/uploads', express.static(UPLOADS_PATH, {
-    setHeaders: (res, path) => {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Content-Disposition', 'attachment');
-    }
-}));
+];
 
-async function readDatabase(file) {
-    try {
-        const filePath = path.join(DB_PATH, file);
-        if (!filePath.startsWith(DB_PATH)) {
-            throw new Error('Caminho inválido');
-        }
-        
-        const data = await fs.readFile(filePath, 'utf8');
-        const parsed = JSON.parse(data);
-        return sanitizeData(parsed);
-    } catch (error) {
-        if (file === 'users.json') return { users: [] };
-        if (file === 'products.json') return [];
-        if (file === 'orders.json') return { orders: [] };
-        if (file === 'stats.json') return await generateRealStats();
-        if (file === 'downloads.json') return { downloads: [] };
-        if (file === 'reviews.json') return { reviews: [] };
-        if (file === 'logs.json') return { logs: [] };
-        if (file === 'security.json') return { failedAttempts: [], blockedIPs: [] };
-        return [];
-    }
-}
+const sampleUpcoming = [];
 
-async function writeDatabase(file, data) {
-    const filePath = path.join(DB_PATH, file);
-    if (!filePath.startsWith(DB_PATH)) {
-        throw new Error('Caminho inválido');
-    }
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Lua Works - Inicializando sistema...');
     
-    const sanitizedData = sanitizeData(data);
-    await fs.writeFile(filePath, JSON.stringify(sanitizedData, null, 2));
-}
-
-async function generateRealStats() {
-    return {
-        totalUsers: 0,
-        activeUsers: 0,
-        totalOrders: 0,
-        totalRevenue: '0',
-        popularCurrency: 'USD',
-        topProduct: '',
-        projectsDelivered: 0,
-        clientRetention: 0,
-        industryAwards: 0,
-        supportTickets: 0,
-        resolvedTickets: 0,
-        activeProducts: 0,
-        averageRating: 0,
-        monthlyGrowth: 0,
-        countries: 0,
-        discordMembers: 0
-    };
-}
-
-async function checkFailedAttempts(ip, identifier) {
     try {
-        const securityDb = await readDatabase('security.json');
-        const now = Date.now();
-        const oneHourAgo = now - (60 * 60 * 1000);
-        
-        securityDb.failedAttempts = securityDb.failedAttempts.filter(attempt => 
-            attempt.timestamp > oneHourAgo
-        );
-        
-        const ipAttempts = securityDb.failedAttempts.filter(a => a.ip === ip);
-        const identifierAttempts = securityDb.failedAttempts.filter(a => a.identifier === identifier);
-        
-        if (ipAttempts.length >= 10 || identifierAttempts.length >= 5) {
-            securityDb.blockedIPs.push({
-                ip: ip,
-                blockedAt: now,
-                reason: 'Muitas tentativas falhas'
-            });
-            await writeDatabase('security.json', securityDb);
-            return true;
-        }
-        
-        return false;
+        await loadAllData();
+        await loadUserData();
+        loadCart();
+        setupEventListeners();
+        setupAnimations();
+        setupAdminSystem();
+        updateUI();
+        renderProducts();
+        renderCurrencies();
+        updateStatsDisplay();
+        console.log('Sistema inicializado com sucesso!');
     } catch (error) {
-        return false;
-    }
-}
-
-async function recordFailedAttempt(ip, identifier) {
-    try {
-        const securityDb = await readDatabase('security.json');
-        securityDb.failedAttempts.push({
-            ip: ip,
-            identifier: identifier,
-            timestamp: Date.now()
-        });
-        await writeDatabase('security.json', securityDb);
-    } catch (error) {
-    }
-}
-
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ error: 'Token de acesso não fornecido' });
-    }
-
-    jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Token inválido ou expirado' });
-        }
-        
-        if (!user || !user.id || !user.username) {
-            return res.status(403).json({ error: 'Token inválido' });
-        }
-        
-        req.user = user;
-        next();
-    });
-}
-
-async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
-    try {
-        const logsDb = await readDatabase('logs.json');
-        logsDb.logs.push({
-            id: `LOG-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`,
-            event,
-            details: validator.escape(details.substring(0, 1000)),
-            userId,
-            timestamp: new Date().toISOString(),
-            ip: ip
-        });
-        
-        if (logsDb.logs.length > 10000) {
-            logsDb.logs = logsDb.logs.slice(-5000);
-        }
-        
-        await writeDatabase('logs.json', logsDb);
-    } catch (error) {
-    }
-}
-
-async function syncAdminUser() {
-    try {
-        const db = await readDatabase('users.json');
-        
-        const adminExists = db.users.find(u => u.username === ADMIN_USERNAME);
-        
-        if (adminExists) {
-            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
-            adminExists.password = hashedPassword;
-            adminExists.email = ADMIN_EMAIL || adminExists.email;
-            adminExists.lastUpdate = new Date().toISOString();
-            
-            await logActivity('ADMIN_UPDATED', `Credenciais do admin atualizadas`, adminExists.id);
-            
-        } else {
-            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
-            
-            const adminUser = {
-                id: 'admin-' + Date.now().toString() + '-' + crypto.randomBytes(4).toString('hex'),
-                username: ADMIN_USERNAME,
-                email: ADMIN_EMAIL,
-                password: hashedPassword,
-                profile: {
-                    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(ADMIN_USERNAME)}&background=00ff88&color=000&bold=true&size=256`,
-                    bio: 'Administrador principal do sistema Lua Works',
-                    location: 'Brasil',
-                    website: 'https://lua-works.store',
-                    social: {
-                        discord: '',
-                        github: '',
-                        twitter: ''
-                    }
-                },
-                preferences: {
-                    theme: 'dark',
-                    currency: 'USD',
-                    notifications: true,
-                    newsletter: false,
-                    language: 'pt-BR'
-                },
-                orders: [],
-                downloads: [],
-                createdAt: new Date().toISOString(),
-                lastLogin: new Date().toISOString(),
-                lastActive: new Date().toISOString(),
-                isAdmin: true,
-                isVerified: true,
-                twoFactorEnabled: false,
-                apiKey: 'lw_' + crypto.randomBytes(32).toString('hex'),
-                lastUpdate: new Date().toISOString()
-            };
-            
-            db.users.push(adminUser);
-            
-            await logActivity('ADMIN_CREATED', `Usuário admin inicializado: ${ADMIN_USERNAME}`, adminUser.id);
-        }
-        
-        db.users.forEach(user => {
-            if (user.username !== ADMIN_USERNAME && user.isAdmin) {
-                user.isAdmin = false;
-                logActivity('ADMIN_DEMOTED', `Usuário ${user.username} teve privilégios admin removidos`, user.id);
-            }
-        });
-        
-        await writeDatabase('users.json', db);
-        
-        const stats = await readDatabase('stats.json');
-        stats.totalUsers = db.users.length;
-        stats.activeUsers = db.users.filter(u => u.lastLogin).length;
-        await writeDatabase('stats.json', stats);
-        
-        return true;
-        
-    } catch (error) {
-        return false;
-    }
-}
-
-app.get('/api/crypto-prices', async (req, res) => {
-    try {
-        const prices = {
-            BTC: 45000,
-            ETH: 2500,
-            USDT: 1,
-            XRP: 0.5,
-            BNB: 300,
-            SOL: 100,
-            LTC: 75,
-            ADA: 0.45
-        };
-        
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.json(prices);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.error('Erro na inicialização:', error);
+        showError('Erro ao carregar o sistema. Recarregue a página.');
     }
 });
 
-app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), async (req, res) => {
+async function loadAllData() {
     try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
+        const [productsData, currenciesData, upcomingData] = await Promise.all([
+            fetchData('/products'),
+            fetchData('/currencies'),
+            fetchData('/products/upcoming')
+        ]);
         
-        if (!user || !user.isAdmin) {
-            if (req.file) {
-                await fs.unlink(req.file.path).catch(() => {});
-            }
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-        }
-
-        const fileExtension = path.extname(req.file.originalname).toLowerCase();
-        const allowedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md', '.lua'];
-        
-        if (!allowedExtensions.includes(fileExtension)) {
-            await fs.unlink(req.file.path).catch(() => {});
-            return res.status(400).json({ error: 'Tipo de arquivo não permitido' });
-        }
-
-        const maxSize = 100 * 1024 * 1024;
-        if (req.file.size > maxSize) {
-            await fs.unlink(req.file.path).catch(() => {});
-            return res.status(400).json({ error: 'Arquivo muito grande' });
-        }
-
-        const fileInfo = {
-            fileName: validator.escape(req.file.originalname.substring(0, 255)),
-            filePath: `/uploads/${req.file.filename}`,
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: user.id
-        };
-
-        await logActivity('FILE_UPLOADED', `Arquivo enviado: ${req.file.originalname} (${req.file.size} bytes)`, user.id, req.ip);
-
-        res.json({
-            success: true,
-            message: 'Arquivo enviado com sucesso!',
-            fileUrl: fileInfo.filePath,
-            fileName: fileInfo.fileName,
-            fileSize: fileInfo.fileSize,
-            mimeType: fileInfo.mimeType
-        });
-
+        products = productsData || sampleProducts;
+        currencies = currenciesData || getDefaultCurrencies();
+        upcomingProducts = upcomingData || sampleUpcoming;
     } catch (error) {
-        if (req.file) {
-            await fs.unlink(req.file.path).catch(() => {});
-        }
-        
-        res.status(500).json({ 
-            error: 'Erro interno do servidor no upload'
-        });
+        console.warn('Erro ao carregar dados da API, usando dados locais:', error.message);
+        products = sampleProducts;
+        currencies = getDefaultCurrencies();
+        upcomingProducts = sampleUpcoming;
     }
-});
+}
 
-app.get('/api/download/:productId', async (req, res) => {
+async function loadUserData() {
+    const token = localStorage.getItem('auth_token');
+    const userData = localStorage.getItem('user_data');
+    
+    if (!token || !userData) return;
+    
     try {
-        const { productId } = req.params;
-        
-        if (!validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'ID do produto inválido' });
+        currentUser = JSON.parse(userData);
+        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
+        if (currentUser.email === 'XXXXXXXXXXXXXXX' || currentUser.username === 'XXXXXX' || currentUser.isAdmin) {
+            currentUser.isAdmin = true;
         }
-        
-        const productsDb = await readDatabase('products.json');
-        const product = productsDb.find(p => p.id === productId);
-        
-        if (!product) {
-            return res.status(404).json({ error: 'Produto não encontrado' });
-        }
+        console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
+        console.log(`Compras carregadas: ${userPurchases.length}`);
+    } catch (error) {
+        console.error('Erro ao carregar dados do usuário:', error);
+        logoutUser();
+    }
+}
 
-        if (!product.filePath) {
-            return res.status(404).json({ error: 'Arquivo do produto não encontrado' });
-        }
-
-        const fileName = path.basename(product.filePath);
-        const filePath = path.join(__dirname, product.filePath);
-        
+function loadCart() {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
         try {
-            await fs.access(filePath);
-        } catch {
-            return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
+            cart = JSON.parse(savedCart);
+            updateCartCount();
+        } catch (error) {
+            console.error('Erro ao carregar carrinho:', error);
+            cart = [];
         }
-
-        const downloadsDb = await readDatabase('downloads.json');
-        downloadsDb.downloads.push({
-            productId: product.id,
-            productName: product.name,
-            downloadedAt: new Date().toISOString(),
-            ip: req.ip,
-            userAgent: req.get('User-Agent') ? req.get('User-Agent').substring(0, 500) : 'Desconhecido'
-        });
-        await writeDatabase('downloads.json', downloadsDb);
-
-        product.downloads = (product.downloads || 0) + 1;
-        await writeDatabase('products.json', productsDb);
-
-        await logActivity('PRODUCT_DOWNLOADED', `Produto baixado: ${product.name}`, null, req.ip);
-
-        const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
-        res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.download(filePath, originalFileName);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor no download' });
     }
-});
+}
 
-app.get('/api/download/:productId/authenticated', authenticateToken, async (req, res) => {
+function saveCart() {
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartCount();
+}
+
+function updateCartCount() {
+    const cartCount = document.getElementById('cartCount');
+    if (cartCount) {
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        cartCount.textContent = totalItems;
+        if (totalItems > 0) {
+            cartCount.style.display = 'flex';
+        } else {
+            cartCount.style.display = 'none';
+        }
+    }
+}
+
+async function fetchData(endpoint) {
     try {
-        const { productId } = req.params;
-        
-        if (!validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'ID do produto inválido' });
+        const response = await fetch(`${API_BASE}${endpoint}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-        
-        const productsDb = await readDatabase('products.json');
-        const product = productsDb.find(p => p.id === productId);
-        
-        if (!product) {
-            return res.status(404).json({ error: 'Produto não encontrado' });
-        }
-
-        if (!product.filePath) {
-            return res.status(404).json({ error: 'Arquivo do produto não encontrado' });
-        }
-
-        const userDb = await readDatabase('users.json');
-        const user = userDb.users.find(u => u.id === req.user.id);
-        
-        if (!user) {
-            return res.status(404).json({ error: 'Usuário não encontrado' });
-        }
-
-        const hasPurchased = user.orders && user.orders.some(order => 
-            order.productId === productId && order.status === 'completed'
-        );
-
-        if (!hasPurchased && !user.isAdmin) {
-            return res.status(403).json({ error: 'Você precisa comprar este produto para baixá-lo' });
-        }
-
-        const fileName = path.basename(product.filePath);
-        const filePath = path.join(__dirname, product.filePath);
-        
-        try {
-            await fs.access(filePath);
-        } catch {
-            return res.status(404).json({ error: 'Arquivo não encontrado no servidor' });
-        }
-
-        const downloadsDb = await readDatabase('downloads.json');
-        downloadsDb.downloads.push({
-            productId: product.id,
-            productName: product.name,
-            userId: user.id,
-            downloadedAt: new Date().toISOString(),
-            ip: req.ip
-        });
-        await writeDatabase('downloads.json', downloadsDb);
-
-        product.downloads = (product.downloads || 0) + 1;
-        await writeDatabase('products.json', productsDb);
-
-        await logActivity('PRODUCT_DOWNLOADED', `Produto baixado (autenticado): ${product.name}`, user.id, req.ip);
-
-        const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
-        res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.download(filePath, originalFileName);
-
+        return await response.json();
     } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
+        console.warn(`Não foi possível carregar ${endpoint}:`, error.message);
+        return null;
     }
-});
+}
 
-app.get('/api/verify-token', authenticateToken, (req, res) => {
-    res.json({ valid: true, user: req.user });
-});
-
-app.get('/api/products', async (req, res) => {
-    try {
-        const products = await readDatabase('products.json');
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        res.json(products);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/products/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
-        
-        const products = await readDatabase('products.json');
-        const product = products.find(p => p.id === id);
-        
-        if (!product) {
-            return res.status(404).json({ error: 'Produto não encontrado' });
-        }
-        
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        res.json(product);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/products/upcoming', async (req, res) => {
-    try {
-        const products = await readDatabase('products.json');
-        const upcoming = products.filter(p => p.status === 'upcoming');
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        res.json(upcoming);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/stats', async (req, res) => {
-    try {
-        const stats = await readDatabase('stats.json');
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.json(stats);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/currencies', (req, res) => {
-    const currencies = [
+function getDefaultCurrencies() {
+    return [
         { 
             id: 'bitcoin', 
             name: 'Bitcoin', 
             symbol: 'BTC', 
             icon: 'fab fa-bitcoin',
             color: '#f7931a',
-            address: 'bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w',
+            address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
             network: 'Bitcoin Mainnet'
         },
         { 
@@ -682,7 +234,7 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'ETH', 
             icon: 'fab fa-ethereum',
             color: '#627eea',
-            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
+            address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
             network: 'Ethereum Mainnet'
         },
         { 
@@ -691,978 +243,1676 @@ app.get('/api/currencies', (req, res) => {
             symbol: 'USDT', 
             icon: 'fas fa-coins',
             color: '#26a17b',
-            address: 'TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa',
-            network: 'TRC20 (Tron)'
-        },
-        { 
-            id: 'bnb', 
-            name: 'BNB', 
-            symbol: 'BNB', 
-            icon: 'fab fa-btc',
-            color: '#f0b90b',
-            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
-            network: 'BEP20 (Binance Smart Chain)'
-        },
-        { 
-            id: 'solana', 
-            name: 'Solana', 
-            symbol: 'SOL', 
-            icon: 'fas fa-sun',
-            color: '#00ffa3',
-            address: '8qpUpMp3hi9cvRjWncAAA3Da5hD36ecy5HdCzvqYW6nG',
-            network: 'Solana Mainnet'
-        },
-        { 
-            id: 'litecoin', 
-            name: 'Litecoin', 
-            symbol: 'LTC', 
-            icon: 'fab fa-bitcoin',
-            color: '#bfbbbb',
-            address: 'ltc1qzcapvq8fytjtd4kxnt7srl2cm45um3rxf7h4j8',
-            network: 'Litecoin Mainnet'
+            address: 'TNSgRrJjU9vCh3qLgJoj5gLk7Wb9Xr1R6F',
+            network: 'TRC20'
         }
     ];
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.json(currencies);
-});
+}
 
-app.get('/api/payment-info/:currency', (req, res) => {
-    const { currency } = req.params;
-    
-    if (!validateInput(currency, 'text')) {
-        return res.status(400).json({ error: 'Moeda inválida' });
-    }
-    
-    const currencyInfo = {
-        BTC: {
-            name: 'Bitcoin',
-            symbol: 'BTC',
-            address: 'bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w',
-            network: 'Bitcoin Mainnet',
-            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=bitcoin:bc1q3xh8j8a0v00f9fhss7nxpxrl9hqk069gppw94w'
-        },
-        ETH: {
-            name: 'Ethereum',
-            symbol: 'ETH',
-            address: '0xd75245E5807bBdE2f916fd48e537a78220a7713D',
-            network: 'Ethereum Mainnet',
-            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ethereum:0xd75245E5807bBdE2f916fd48e537a78220a7713D'
-        },
-        USDT: {
-            name: 'Tether',
-            symbol: 'USDT',
-            address: 'TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa',
-            network: 'TRC20 (Tron)',
-            qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=tron:TZC559vuvL8uT6XN7PzHiSxGpDPsLRngLa'
-        }
-    };
-    
-    const info = currencyInfo[currency] || currencyInfo.BTC;
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.json(info);
-});
-
-app.post('/api/calculate-crypto-price', async (req, res) => {
-    try {
-        const { usdAmount, cryptoCurrency } = req.body;
-        
-        if (!usdAmount || !cryptoCurrency) {
-            return res.status(400).json({ error: 'Dados incompletos' });
-        }
-        
-        if (!validateInput(cryptoCurrency, 'text')) {
-            return res.status(400).json({ error: 'Moeda inválida' });
-        }
-        
-        const usd = parseFloat(usdAmount);
-        if (isNaN(usd) || usd <= 0 || usd > 1000000) {
-            return res.status(400).json({ error: 'Valor em USD inválido' });
-        }
-        
-        const cryptoPrices = {
-            BTC: 45000,
-            ETH: 2500,
-            USDT: 1,
-            XRP: 0.5,
-            BNB: 300,
-            SOL: 100,
-            LTC: 75,
-            ADA: 0.45
-        };
-        
-        const price = cryptoPrices[cryptoCurrency];
-        if (!price) {
-            return res.status(400).json({ error: 'Criptomoeda não suportada' });
-        }
-        
-        const cryptoAmount = usd / price;
-        
-        res.json({
-            usdAmount: usd,
-            cryptoCurrency,
-            cryptoAmount: cryptoAmount,
-            exchangeRate: price,
-            formatted: {
-                usd: `$${usd.toFixed(2)}`,
-                crypto: `${cryptoAmount.toFixed(8)} ${cryptoCurrency}`
-            }
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const existingItem = cart.find(item => item.productId === productId);
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        cart.push({
+            productId: product.id,
+            name: product.name,
+            price: parseFloat(product.price),
+            currency: product.currency,
+            quantity: 1,
+            image: getProductIcon(product.category)
         });
-        
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
     }
-});
-
-app.post('/api/admin/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username e password são obrigatórios' });
-        }
-        
-        if (!validateInput(username, 'username') || !validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
-
-        const isBlocked = await checkFailedAttempts(req.ip, username);
-        if (isBlocked) {
-            await logActivity('LOGIN_BLOCKED', `Tentativa de login bloqueada para IP: ${req.ip}`, null, req.ip);
-            return res.status(403).json({ error: 'Acesso temporariamente bloqueado' });
-        }
-
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
-        
-        if (!user) {
-            await recordFailedAttempt(req.ip, username);
-            await logActivity('LOGIN_FAILED', `Tentativa de login com usuário inexistente: ${username}`, null, req.ip);
-            return res.status(401).json({ error: 'Credenciais inválidas' });
-        }
-
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            await recordFailedAttempt(req.ip, username);
-            await logActivity('LOGIN_FAILED', `Senha incorreta para usuário: ${username}`, user.id, req.ip);
-            return res.status(401).json({ error: 'Credenciais inválidas' });
-        }
-
-        if (!user.isAdmin) {
-            await recordFailedAttempt(req.ip, username);
-            await logActivity('LOGIN_FAILED', `Usuário não-admin tentou acessar admin: ${username}`, user.id, req.ip);
-            return res.status(403).json({ error: 'Acesso não autorizado. Apenas administradores.' });
-        }
-
-        user.lastLogin = new Date().toISOString();
-        user.lastActive = new Date().toISOString();
-        await writeDatabase('users.json', db);
-
-        const token = jwt.sign(
-            { 
-                id: user.id, 
-                username: user.username, 
-                email: user.email,
-                isAdmin: user.isAdmin 
-            },
-            SECRET_KEY,
-            { expiresIn: '8h' }
-        );
-
-        await logActivity('LOGIN_SUCCESS', `Admin ${username} fez login`, user.id, req.ip);
-
-        res.setHeader('Authorization', `Bearer ${token}`);
-        
-        res.json({
-            message: 'Login realizado com sucesso!',
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                profile: user.profile,
-                preferences: user.preferences,
-                orders: user.orders,
-                downloads: user.downloads,
-                isAdmin: user.isAdmin,
-                isVerified: user.isVerified,
-                apiKey: user.apiKey,
-                createdAt: user.createdAt
-            },
-            token,
-            expiresIn: '8h'
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const stats = await readDatabase('stats.json');
-        const ordersDb = await readDatabase('orders.json');
-        const productsDb = await readDatabase('products.json');
-        const downloadsDb = await readDatabase('downloads.json');
-        const usersDb = await readDatabase('users.json');
-        const logsDb = await readDatabase('logs.json');
-
-        const detailedStats = {
-            totalUsers: usersDb.users.length,
-            activeUsers: usersDb.users.filter(u => u.lastLogin).length,
-            totalProducts: productsDb.length,
-            activeProducts: productsDb.filter(p => p.status === 'active').length,
-            upcomingProducts: productsDb.filter(p => p.status === 'upcoming').length,
-            totalOrders: ordersDb.orders.length,
-            totalRevenue: ordersDb.orders
-                .filter(o => o.status === 'completed')
-                .reduce((sum, o) => sum + parseFloat(o.amount), 0),
-            todayDownloads: downloadsDb.downloads.filter(d => {
-                const today = new Date().toDateString();
-                return new Date(d.downloadedAt).toDateString() === today;
-            }).length,
-            monthlyRevenue: ordersDb.orders
-                .filter(o => {
-                    const orderDate = new Date(o.createdAt);
-                    const now = new Date();
-                    return orderDate.getMonth() === now.getMonth() && 
-                           orderDate.getFullYear() === now.getFullYear();
-                })
-                .reduce((sum, o) => sum + parseFloat(o.amount), 0),
-            todayLogins: logsDb.logs.filter(l => {
-                const today = new Date().toDateString();
-                return l.event === 'LOGIN_SUCCESS' && 
-                       new Date(l.timestamp).toDateString() === today;
-            }).length,
-            failedAttempts: logsDb.logs.filter(l => l.event === 'LOGIN_FAILED').length,
-            uniqueIPs: [...new Set(logsDb.logs.map(l => l.ip))].length
-        };
-
-        res.json(detailedStats);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/products', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const products = await readDatabase('products.json');
-        res.json(products);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.post('/api/admin/products', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const productData = req.body;
-        
-        if (!productData.name || !productData.description || !productData.price) {
-            return res.status(400).json({ error: 'Dados do produto incompletos' });
-        }
-        
-        if (!validateInput(productData.name, 'text') || !validateInput(productData.description, 'text')) {
-            return res.status(400).json({ error: 'Dados do produto inválidos' });
-        }
-
-        const productsDb = await readDatabase('products.json');
-        
-        const newProduct = {
-            id: `prod-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`,
-            name: validator.escape(productData.name.substring(0, 255)),
-            description: validator.escape(productData.description.substring(0, 500)),
-            longDescription: productData.longDescription ? validator.escape(productData.longDescription.substring(0, 5000)) : '',
-            price: parseFloat(productData.price),
-            originalPrice: parseFloat(productData.originalPrice || productData.price),
-            currency: productData.currency || 'USD',
-            category: validateInput(productData.category, 'text') ? productData.category : 'automation',
-            features: productData.features ? (Array.isArray(productData.features) ? productData.features.map(f => validator.escape(f.substring(0, 100))) : productData.features.split(',').map(f => validator.escape(f.trim().substring(0, 100)))) : [],
-            status: productData.isUpcoming ? 'upcoming' : 'active',
-            featured: !!productData.featured,
-            uploadDate: new Date().toISOString(),
-            lastUpdate: new Date().toISOString(),
-            version: validateInput(productData.version, 'text') ? productData.version : '1.0.0',
-            downloads: 0,
-            rating: 0,
-            tags: productData.tags ? (Array.isArray(productData.tags) ? productData.tags.map(t => validator.escape(t.substring(0, 50))) : productData.tags.split(',').map(t => validator.escape(t.trim().substring(0, 50)))) : [],
-            systemRequirements: productData.systemRequirements || {},
-            includes: productData.includes ? (Array.isArray(productData.includes) ? productData.includes.map(i => validator.escape(i.substring(0, 100))) : productData.includes.split(',').map(i => validator.escape(i.trim().substring(0, 100)))) : [],
-            fileSize: validateInput(productData.fileSize, 'text') ? productData.fileSize : '0 MB',
-            filePath: validateInput(productData.fileUrl, 'text') ? productData.fileUrl : '',
-            fileName: validateInput(productData.fileName, 'filename') ? productData.fileName : '',
-            developer: validateInput(productData.developer, 'text') ? productData.developer : 'Lua Works Team',
-            changelog: Array.isArray(productData.changelog) ? productData.changelog.map(c => validator.escape(c.substring(0, 500))) : []
-        };
-
-        productsDb.push(newProduct);
-        await writeDatabase('products.json', productsDb);
-
-        await logActivity('PRODUCT_ADDED', `Produto adicionado: ${newProduct.name}`, user.id, req.ip);
-
-        res.status(201).json({
-            message: 'Produto criado com sucesso!',
-            product: newProduct
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.put('/api/admin/products/:id', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-        
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
-
-        const productsDb = await readDatabase('products.json');
-        const productIndex = productsDb.findIndex(p => p.id === id);
-        
-        if (productIndex === -1) {
-            return res.status(404).json({ error: 'Produto não encontrado' });
-        }
-
-        const updatedProduct = {
-            ...productsDb[productIndex],
-            ...req.body,
-            lastUpdate: new Date().toISOString()
-        };
-
-        productsDb[productIndex] = updatedProduct;
-        await writeDatabase('products.json', productsDb);
-
-        await logActivity('PRODUCT_UPDATED', `Produto atualizado: ${updatedProduct.name}`, user.id, req.ip);
-
-        res.json({
-            message: 'Produto atualizado com sucesso!',
-            product: updatedProduct
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-        
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
-
-        const productsDb = await readDatabase('products.json');
-        const productIndex = productsDb.findIndex(p => p.id === id);
-        
-        if (productIndex === -1) {
-            return res.status(404).json({ error: 'Produto não encontrado' });
-        }
-
-        const deletedProduct = productsDb[productIndex];
-        
-        if (deletedProduct.filePath) {
-            const filePath = path.join(__dirname, deletedProduct.filePath);
-            try {
-                await fs.unlink(filePath);
-                await logActivity('FILE_DELETED', `Arquivo removido: ${deletedProduct.filePath}`, user.id, req.ip);
-            } catch (error) {
-            }
-        }
-
-        productsDb.splice(productIndex, 1);
-        await writeDatabase('products.json', productsDb);
-
-        await logActivity('PRODUCT_DELETED', `Produto excluído: ${deletedProduct.name}`, user.id, req.ip);
-
-        res.json({
-            message: 'Produto excluído com sucesso!'
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/recent-activity', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const logsDb = await readDatabase('logs.json');
-        const recentActivity = logsDb.logs
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            .slice(0, 10);
-
-        res.json(recentActivity);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/security-logs', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const logsDb = await readDatabase('logs.json');
-        const securityLogs = logsDb.logs
-            .filter(l => l.event.includes('LOGIN') || l.event.includes('SECURITY') || l.event.includes('FILE'))
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            .slice(0, 20);
-
-        res.json(securityLogs);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.post('/api/admin/reset-credentials', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const success = await syncAdminUser();
-        
-        if (success) {
-            await logActivity('ADMIN_RESET', `Admin reiniciou credenciais do sistema`, user.id, req.ip);
-            res.json({ 
-                message: 'Credenciais do admin atualizadas com sucesso!',
-                username: ADMIN_USERNAME,
-                email: ADMIN_EMAIL
-            });
-        } else {
-            res.status(500).json({ error: 'Erro ao atualizar credenciais' });
-        }
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        
-        if (!username || !email || !password) {
-            return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
-        }
-        
-        if (!validateInput(username, 'username')) {
-            return res.status(400).json({ error: 'Nome de usuário inválido' });
-        }
-        
-        if (!validateInput(email, 'email')) {
-            return res.status(400).json({ error: 'Email inválido' });
-        }
-        
-        if (!validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Senha inválida. Mínimo 8 caracteres com maiúsculas, minúsculas, números e símbolos.' });
-        }
-
-        const db = await readDatabase('users.json');
-        
-        if (db.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-            return res.status(400).json({ error: 'Email já cadastrado' });
-        }
-        
-        if (db.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-            return res.status(400).json({ error: 'Nome de usuário já existe' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 12);
-        
-        const newUser = {
-            id: Date.now().toString() + '-' + crypto.randomBytes(4).toString('hex'),
-            username: validator.escape(username),
-            email: validator.normalizeEmail(email),
-            password: hashedPassword,
-            profile: {
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=00ff88&color=000&bold=true&size=256`,
-                bio: '',
-                location: '',
-                website: '',
-                social: {
-                    discord: '',
-                    github: '',
-                    twitter: ''
-                }
-            },
-            preferences: {
-                theme: 'dark',
-                currency: 'USD',
-                notifications: true,
-                newsletter: true,
-                language: 'pt-BR'
-            },
-            orders: [],
-            downloads: [],
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            lastActive: new Date().toISOString(),
-            isAdmin: false,
-            isVerified: false,
-            twoFactorEnabled: false,
-            apiKey: 'lw_' + crypto.randomBytes(32).toString('hex')
-        };
-
-        db.users.push(newUser);
-        await writeDatabase('users.json', db);
-
-        const stats = await readDatabase('stats.json');
-        stats.totalUsers = db.users.length;
-        stats.activeUsers = db.users.filter(u => u.lastLogin).length;
-        await writeDatabase('stats.json', stats);
-
-        const token = jwt.sign(
-            { 
-                id: newUser.id, 
-                username: newUser.username, 
-                email: newUser.email,
-                isAdmin: newUser.isAdmin 
-            },
-            SECRET_KEY,
-            { expiresIn: '30d' }
-        );
-
-        await logActivity('USER_REGISTERED', `Novo usuário registrado: ${username}`, newUser.id, req.ip);
-
-        res.status(201).json({
-            message: 'Usuário criado com sucesso!',
-            user: {
-                id: newUser.id,
-                username: newUser.username,
-                email: newUser.email,
-                profile: newUser.profile,
-                preferences: newUser.preferences,
-                isAdmin: newUser.isAdmin,
-                isVerified: newUser.isVerified,
-                apiKey: newUser.apiKey
-            },
-            token
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email e senha são obrigatórios' });
-        }
-        
-        if (!validateInput(email, 'email') || !validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
-
-        const isBlocked = await checkFailedAttempts(req.ip, email);
-        if (isBlocked) {
-            await logActivity('LOGIN_BLOCKED', `Tentativa de login bloqueada para IP: ${req.ip}`, null, req.ip);
-            return res.status(403).json({ error: 'Acesso temporariamente bloqueado' });
-        }
-
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        if (!user) {
-            await recordFailedAttempt(req.ip, email);
-            await logActivity('LOGIN_FAILED', `Tentativa de login com email inexistente: ${email}`, null, req.ip);
-            return res.status(401).json({ error: 'Credenciais inválidas' });
-        }
-
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            await recordFailedAttempt(req.ip, email);
-            await logActivity('LOGIN_FAILED', `Senha incorreta para email: ${email}`, user.id, req.ip);
-            return res.status(401).json({ error: 'Credenciais inválidas' });
-        }
-
-        user.lastLogin = new Date().toISOString();
-        user.lastActive = new Date().toISOString();
-        await writeDatabase('users.json', db);
-
-        const token = jwt.sign(
-            { 
-                id: user.id, 
-                username: user.username, 
-                email: user.email,
-                isAdmin: user.isAdmin 
-            },
-            SECRET_KEY,
-            { expiresIn: '30d' }
-        );
-
-        await logActivity('LOGIN_SUCCESS', `Usuário fez login: ${user.username}`, user.id, req.ip);
-
-        res.setHeader('Authorization', `Bearer ${token}`);
-        
-        res.json({
-            message: 'Login realizado com sucesso!',
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                profile: user.profile,
-                preferences: user.preferences,
-                orders: user.orders,
-                downloads: user.downloads,
-                isAdmin: user.isAdmin,
-                isVerified: user.isVerified,
-                apiKey: user.apiKey,
-                createdAt: user.createdAt
-            },
-            token
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user) {
-            return res.status(404).json({ error: 'Usuário não encontrado' });
-        }
-
-        user.lastActive = new Date().toISOString();
-        await writeDatabase('users.json', db);
-
-        res.json({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            profile: user.profile,
-            preferences: user.preferences,
-            orders: user.orders,
-            downloads: user.downloads,
-            isAdmin: user.isAdmin,
-            isVerified: user.isVerified,
-            apiKey: user.apiKey,
-            createdAt: user.createdAt,
-            lastLogin: user.lastLogin,
-            twoFactorEnabled: user.twoFactorEnabled
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/users', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const users = db.users.map(u => ({
-            id: u.id,
-            username: u.username,
-            email: u.email,
-            createdAt: u.createdAt,
-            lastLogin: u.lastLogin,
-            lastActive: u.lastActive,
-            orders: u.orders.length,
-            downloads: u.downloads.length,
-            isAdmin: u.isAdmin,
-            isVerified: u.isVerified
-        }));
-
-        res.json(users);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/stats', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const stats = await readDatabase('stats.json');
-        const ordersDb = await readDatabase('orders.json');
-        const productsDb = await readDatabase('products.json');
-        const downloadsDb = await readDatabase('downloads.json');
-
-        const detailedStats = {
-            ...stats,
-            totalOrders: ordersDb.orders.length,
-            totalProducts: productsDb.length,
-            activeProducts: productsDb.filter(p => p.status === 'active').length,
-            upcomingProducts: productsDb.filter(p => p.status === 'upcoming').length,
-            totalRevenue: ordersDb.orders
-                .filter(o => o.status === 'completed')
-                .reduce((sum, o) => sum + parseFloat(o.amount), 0),
-            todayDownloads: downloadsDb.downloads.filter(d => {
-                const today = new Date().toDateString();
-                return new Date(d.downloadedAt).toDateString() === today;
-            }).length,
-            monthlyRevenue: ordersDb.orders
-                .filter(o => {
-                    const orderDate = new Date(o.createdAt);
-                    const now = new Date();
-                    return orderDate.getMonth() === now.getMonth() && 
-                           orderDate.getFullYear() === now.getFullYear();
-                })
-                .reduce((sum, o) => sum + parseFloat(o.amount), 0)
-        };
-
-        res.json(detailedStats);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/orders', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const ordersDb = await readDatabase('orders.json');
-        
-        res.json(ordersDb.orders);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/public/products', async (req, res) => {
-    try {
-        const products = await readDatabase('products.json');
-        const publicProducts = products.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            currency: p.currency,
-            category: p.category,
-            features: p.features?.slice(0, 3) || [],
-            status: p.status,
-            featured: p.featured,
-            uploadDate: p.uploadDate,
-            version: p.version,
-            downloads: p.downloads || 0,
-            rating: p.rating || 0,
-            tags: p.tags || []
-        }));
-        
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        res.json(publicProducts);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/public/stats', async (req, res) => {
-    try {
-        const stats = await readDatabase('stats.json');
-        const publicStats = {
-            projectsDelivered: stats.projectsDelivered,
-            clientRetention: stats.clientRetention,
-            industryAwards: stats.industryAwards,
-            activeProducts: stats.activeProducts,
-            averageRating: stats.averageRating
-        };
-        
-        res.setHeader('Cache-Control', 'public, max-age=300');
-        res.json(publicStats);
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.post('/api/payments/verify', async (req, res) => {
-    try {
-        const { txHash, currency, amount, productId } = req.body;
-        
-        if (!txHash || !currency || !amount || !productId) {
-            return res.status(400).json({ error: 'Dados incompletos' });
-        }
-        
-        if (!validateInput(txHash, 'text') || !validateInput(currency, 'text') || !validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
-
-        await logActivity('PAYMENT_VERIFICATION_ATTEMPT', 
-            `Tentativa de verificação: ${currency} ${amount} - TX: ${txHash.substring(0, 20)}...`, 
-            req.user?.id || null,
-            req.ip
-        );
-
-        res.json({
-            verified: true,
-            message: 'Pagamento verificado com sucesso!',
-            txHash: txHash,
-            confirmations: 3,
-            status: 'confirmed'
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/api/admin/backup', authenticateToken, async (req, res) => {
-    try {
-        const db = await readDatabase('users.json');
-        const user = db.users.find(u => u.id === req.user.id);
-        
-        if (!user || !user.isAdmin) {
-            return res.status(403).json({ error: 'Acesso negado' });
-        }
-
-        const backupDir = path.join(__dirname, 'backups');
-        await fs.mkdir(backupDir, { recursive: true });
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupFile = path.join(backupDir, `backup-${timestamp}.zip`);
-        const archiver = require('archiver');
-        const output = fsSync.createWriteStream(backupFile);
-        const archive = archiver('zip', { zlib: { level: 9 } });
-        
-        output.on('close', () => {
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Disposition', `attachment; filename="lua-works-backup-${timestamp}.zip"`);
-            res.download(backupFile, (err) => {
-                if (err) {
-                }
-                fs.unlink(backupFile).catch(() => {});
-            });
-        });
-        
-        archive.pipe(output);
-        archive.directory(DB_PATH, 'database');
-        archive.directory(UPLOADS_PATH, 'uploads');
-        archive.finalize();
-
-    } catch (error) {
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-});
-
-app.get('/admin', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
-    res.sendFile(path.join(__dirname, '/public/admin-login.html'));
-});
-
-app.get('/admin/dashboard', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
-    res.sendFile(path.join(__dirname, '/public/admin-dashboard.html'));
-});
-
-app.get('*', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.sendFile(path.join(PUBLIC_PATH, 'index.html'));
-});
-
-async function startServer() {
-    try {
-        await fs.mkdir(DB_PATH, { recursive: true });
-        await fs.mkdir(UPLOADS_PATH, { recursive: true });
-        await fs.mkdir(PUBLIC_PATH, { recursive: true });
-        await fs.mkdir(path.join(__dirname, 'backups'), { recursive: true });
-        
-        const files = ['users.json', 'products.json', 'orders.json', 'stats.json', 'downloads.json', 'reviews.json', 'logs.json', 'security.json'];
-        for (const file of files) {
-            try {
-                await fs.access(path.join(DB_PATH, file));
-            } catch {
-                if (file === 'users.json') await writeDatabase(file, { users: [] });
-                else if (file === 'products.json') await writeDatabase(file, []);
-                else if (file === 'orders.json') await writeDatabase(file, { orders: [] });
-                else if (file === 'stats.json') await writeDatabase(file, await generateRealStats());
-                else if (file === 'downloads.json') await writeDatabase(file, { downloads: [] });
-                else if (file === 'reviews.json') await writeDatabase(file, { reviews: [] });
-                else if (file === 'logs.json') await writeDatabase(file, { logs: [] });
-                else if (file === 'security.json') await writeDatabase(file, { failedAttempts: [], blockedIPs: [] });
-            }
-        }
-
-        await syncAdminUser();
-
-        console.log(`Servidor Lua Works iniciado com sucesso.`);
-
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando na porta ${PORT}`);
-        });
-
-    } catch (error) {
-        console.error('Erro ao iniciar servidor:', error);
-        process.exit(1);
+    saveCart();
+    updateCartModal();
+    showMessage('Produto adicionado ao carrinho!', 'success');
+    updateProductButton(productId, true);
+}
+
+function removeFromCart(productId) {
+    const itemIndex = cart.findIndex(item => item.productId === productId);
+    if (itemIndex !== -1) {
+        cart.splice(itemIndex, 1);
+        saveCart();
+        updateCartModal();
+        showMessage('Produto removido do carrinho', 'info');
+        updateProductButton(productId, false);
     }
 }
-startServer().catch(() => {});
+
+function updateCartModal() {
+    const cartItems = document.getElementById('cartItems');
+    const cartSummary = document.getElementById('cartSummary');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    const cartEmpty = cartItems.querySelector('.cart-empty');
+    if (cart.length === 0) {
+        if (cartEmpty) {
+            cartEmpty.style.display = 'block';
+        }
+        cartSummary.style.display = 'none';
+        checkoutBtn.style.display = 'none';
+        const existingItems = cartItems.querySelectorAll('.cart-item');
+        existingItems.forEach(item => item.remove());
+    } else {
+        if (cartEmpty) {
+            cartEmpty.style.display = 'none';
+        }
+        const existingItems = cartItems.querySelectorAll('.cart-item');
+        existingItems.forEach(item => item.remove());
+        cart.forEach(item => {
+            const cartItem = document.createElement('div');
+            cartItem.className = 'cart-item';
+            cartItem.innerHTML = `
+                <div class="cart-item-image">
+                    <i class="${item.image}"></i>
+                </div>
+                <div class="cart-item-info">
+                    <div class="cart-item-title">${escapeHtml(item.name)}</div>
+                    <div class="cart-item-price">${item.price} ${item.currency} × ${item.quantity}</div>
+                </div>
+                <button class="remove-from-cart" onclick="removeFromCart('${item.productId}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            cartItems.appendChild(cartItem);
+        });
+        updateCartSummary();
+        cartSummary.style.display = 'block';
+        checkoutBtn.style.display = 'block';
+    }
+}
+
+function updateCartSummary() {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const fee = subtotal * 0.02;
+    const total = subtotal + fee;
+    document.getElementById('cartSubtotal').textContent = `${subtotal.toFixed(4)} BTC`;
+    document.getElementById('cartFee').textContent = `${fee.toFixed(4)} BTC`;
+    document.getElementById('cartTotal').textContent = `${total.toFixed(4)} BTC`;
+}
+
+function updateProductButton(productId, inCart) {
+    const productCard = document.querySelector(`.product-card[data-id="${productId}"]`);
+    if (productCard) {
+        const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
+        if (addToCartBtn) {
+        }
+    }
+}
+
+function renderProducts() {
+    const container = document.getElementById('productsGrid');
+    if (!container) return;
+    let allProducts = [...products];
+    if (upcomingProducts.length > 0) {
+        allProducts = [...products, ...upcomingProducts];
+    }
+    container.innerHTML = allProducts.map(product => {
+        const isUpcoming = product.status === 'upcoming';
+        const isFeatured = product.featured;
+        const hasPurchased = userPurchases.some(p => p.productId === product.id);
+        const inCart = cart.some(item => item.productId === product.id);
+        return `
+            <div class="product-card fade-in" data-id="${product.id}" data-category="${product.category || 'automation'}" data-upcoming="${isUpcoming}">
+                ${isFeatured ? '<div class="product-badge featured">DESTAQUE</div>' : ''}
+                ${isUpcoming ? '<div class="product-badge upcoming">EM BREVE</div>' : ''}
+                ${hasPurchased ? '<div class="product-badge purchased"><i class="fas fa-check-circle"></i> COMPRADO</div>' : ''}
+                <div class="product-image" style="background: linear-gradient(135deg, ${getCategoryColor(product.category)}, rgba(0, 255, 136, 0.2));">
+                    <i class="${getProductIcon(product.category)}"></i>
+                    ${isUpcoming ? '<div class="upcoming-overlay"><i class="fas fa-clock"></i></div>' : ''}
+                    ${hasPurchased ? '<div class="purchased-overlay"><i class="fas fa-download"></i> DISPONÍVEL</div>' : ''}
+                </div>
+                <div class="product-content">
+                    <h3 class="product-title">${escapeHtml(product.name)}</h3>
+                    <p class="product-description">${escapeHtml(product.description || 'Script Lua premium otimizado')}</p>
+                    <div class="product-meta">
+                        <span class="product-category ${product.category || 'automation'}">
+                            <i class="${getCategoryIcon(product.category)}"></i> ${getCategoryName(product.category)}
+                        </span>
+                        <div class="product-rating">
+                            ${renderStars(product.rating || 0)}
+                            <span class="rating-text">${product.rating || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="product-stats">
+                        <span class="product-stat">
+                            <i class="fas fa-download"></i> ${product.downloads || 0}
+                        </span>
+                        <span class="product-stat">
+                            <i class="fas fa-code-branch"></i> v${product.version || '1.0'}
+                        </span>
+                        <span class="product-stat">
+                            <i class="fas fa-hdd"></i> ${product.fileSize || 'N/A'}
+                        </span>
+                    </div>
+                    <div class="product-price-container">
+                        <div class="product-price">
+                            ${escapeHtml(product.price)} <span class="currency-symbol">${product.currency || 'BTC'}</span>
+                            ${product.originalPrice ? `<span class="original-price">${product.originalPrice} ${product.currency}</span>` : ''}
+                        </div>
+                        ${product.discount ? `<span class="product-discount">-${product.discount}%</span>` : ''}
+                    </div>
+                    <div class="product-features">
+                        ${(product.features || []).slice(0, 3).map(feature => `
+                            <span class="product-feature">
+                                <i class="fas fa-check-circle"></i> ${escapeHtml(feature)}
+                            </span>
+                        `).join('')}
+                    </div>
+                    <div class="product-footer">
+                        <div class="product-date">
+                            <i class="fas fa-calendar"></i> ${formatDate(product.uploadDate || new Date().toISOString())}
+                        </div>
+                        <div class="product-actions">
+                            ${hasPurchased ? `
+                                <button class="btn btn-success" onclick="downloadProduct('${product.id}')">
+                                    <i class="fas fa-download"></i> BAIXAR
+                                </button>
+                            ` : isUpcoming ? `
+                                <button class="btn btn-secondary" disabled>
+                                    <i class="fas fa-clock"></i> EM BREVE
+                                </button>
+                            ` : `
+                                </button>
+                                <button class="btn btn-info" onclick="viewProductDetails('${product.id}')">
+                                    <i class="fas fa-info-circle"></i> DETALHES
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    const loadingProducts = container.querySelector('.loading-products');
+    if (loadingProducts) {
+        loadingProducts.remove();
+    }
+}
+
+function renderStars(rating) {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            stars.push('<i class="fas fa-star"></i>');
+        } else if (i === fullStars + 1 && hasHalfStar) {
+            stars.push('<i class="fas fa-star-half-alt"></i>');
+        } else {
+            stars.push('<i class="far fa-star"></i>');
+        }
+    }
+    return stars.join('');
+}
+
+function renderCurrencies() {
+    const container = document.getElementById('currenciesGrid');
+    if (!container) return;
+    container.innerHTML = currencies.map(currency => `
+        <div class="currency-option" data-currency="${currency.id}" onclick="selectCurrency('${currency.id}')">
+            <div class="currency-icon ${currency.id}" style="color: ${currency.color || '#00ff88'}">
+                <i class="${currency.icon}"></i>
+            </div>
+            <h4>${currency.name}</h4>
+            <p class="currency-symbol">${currency.symbol}</p>
+            <p class="currency-network">${currency.network || 'Network'}</p>
+            <div class="currency-selector">
+                <div class="checkmark">
+                    <i class="fas fa-check"></i>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateStatsDisplay() {
+    const statsContainer = document.getElementById('statsContainer');
+    if (statsContainer) {
+        const totalProducts = products.length + upcomingProducts.length;
+        const availableProducts = products.length;
+        statsContainer.innerHTML = `
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number">${availableProducts}</div>
+                    <div class="stat-label">Scripts Ativos</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${upcomingProducts.length}</div>
+                    <div class="stat-label">Em Breve</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${totalProducts}</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">V1</div>
+                    <div class="stat-label">Status</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function openPaymentModal(productId = null) {
+    isCheckoutModal = productId === null;
+    if (!isCheckoutModal) {
+        selectedProduct = [...products, ...upcomingProducts].find(p => p.id === productId);
+        if (!selectedProduct) {
+            showError('Produto não encontrado');
+            return;
+        }
+        if (selectedProduct.status === 'upcoming') {
+            showMessage('Este produto estará disponível em breve!', 'info');
+            return;
+        }
+        if (userPurchases.some(p => p.productId === productId)) {
+            showMessage('Você já possui este produto! Acesse Minhas Compras.', 'success');
+            return;
+        }
+    } else {
+        if (cart.length === 0) {
+            showError('Seu carrinho está vazio');
+            return;
+        }
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const fee = subtotal * 0.02;
+        const total = subtotal + fee;
+        selectedProduct = {
+            id: 'cart-checkout',
+            name: 'Carrinho de Compras',
+            description: `Compra de ${cart.length} produto(s)`,
+            price: total.toFixed(4),
+            currency: 'BTC',
+            features: cart.map(item => `${item.quantity}x ${item.name}`)
+        };
+    }
+    const modal = document.getElementById('paymentModal');
+    const productName = document.getElementById('modalProductName');
+    const productPrice = document.getElementById('modalProductPrice');
+    const productDescription = document.getElementById('modalProductDescription');
+    const productFeatures = document.getElementById('modalProductFeatures');
+    if (!productName || !productPrice || !productDescription || !productFeatures) {
+        showError('Elementos do modal não encontrados');
+        return;
+    }
+    productName.textContent = selectedProduct.name;
+    productPrice.innerHTML = `
+        <span class="price-main">${selectedProduct.price} ${selectedProduct.currency || 'BTC'}</span>
+    `;
+    productDescription.textContent = selectedProduct.description;
+    productFeatures.innerHTML = (selectedProduct.features || []).map(feature => `
+        <li><i class="fas fa-check"></i> ${escapeHtml(feature)}</li>
+    `).join('');
+    selectedCurrency = null;
+    resetCurrencySelection();
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    console.log(`Abrindo modal para: ${selectedProduct.name}`);
+}
+
+function closePaymentModal() {
+    const modal = document.getElementById('paymentModal');
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.style.opacity = '0';
+        modalContent.style.transform = 'translateY(-50px)';
+    }
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        selectedProduct = null;
+        selectedCurrency = null;
+        isCheckoutModal = false;
+    }, 300);
+    console.log('Modal fechado');
+}
+
+function selectCurrency(currencyId) {
+    selectedCurrency = currencies.find(c => c.id === currencyId);
+    if (!selectedCurrency) return;
+    document.querySelectorAll('.currency-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    const selectedOption = document.querySelector(`[data-currency="${currencyId}"]`);
+    if (selectedOption) {
+        selectedOption.classList.add('selected');
+    }
+    updateWalletAddress();
+    updateQRCode();
+    console.log(`Moeda selecionada: ${selectedCurrency.name}`);
+}
+
+function updateWalletAddress() {
+    if (!selectedCurrency) return;
+    const addressElement = document.getElementById('walletAddress');
+    const networkElement = document.getElementById('walletNetwork');
+    if (addressElement) {
+        addressElement.textContent = selectedCurrency.address;
+        addressElement.style.color = selectedCurrency.color || '#00ff88';
+    }
+    if (networkElement) {
+        networkElement.textContent = `Rede: ${selectedCurrency.network || 'Mainnet'}`;
+    }
+}
+
+function updateQRCode() {
+    if (!selectedCurrency) return;
+    const qrElement = document.getElementById('walletQr');
+    if (!qrElement) return;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selectedCurrency.address)}`;
+    qrElement.innerHTML = `
+        <div class="qr-container">
+            <img src="${qrCodeUrl}" alt="QR Code para ${selectedCurrency.name}" class="qr-image">
+            <div class="qr-info">
+                <div class="qr-currency">
+                    <i class="${selectedCurrency.icon}" style="color: ${selectedCurrency.color}"></i>
+                    <span>${selectedCurrency.name} (${selectedCurrency.symbol})</span>
+                </div>
+                <div class="qr-network">${selectedCurrency.network || 'Network'}</div>
+            </div>
+        </div>
+    `;
+}
+
+function resetCurrencySelection() {
+    selectedCurrency = null;
+    document.querySelectorAll('.currency-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    const addressElement = document.getElementById('walletAddress');
+    if (addressElement) {
+        addressElement.textContent = 'Selecione uma moeda acima';
+        addressElement.style.color = '';
+    }
+    const networkElement = document.getElementById('walletNetwork');
+    if (networkElement) {
+        networkElement.textContent = '';
+    }
+    const qrElement = document.getElementById('walletQr');
+    if (qrElement) {
+        qrElement.innerHTML = '<div class="qr-placeholder"><i class="fas fa-qrcode"></i><p>Selecione uma moeda</p></div>';
+    }
+}
+
+async function confirmPayment() {
+    if (!selectedProduct) {
+        showError('Nenhum produto selecionado');
+        return;
+    }
+    if (!selectedCurrency) {
+        showError('Selecione uma moeda para pagamento');
+        return;
+    }
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        showError('Você precisa estar logado para realizar a compra');
+        openLoginModal();
+        return;
+    }
+    const btn = document.getElementById('confirmPaymentBtn');
+    if (!btn) return;
+    const originalText = btn.innerHTML;
+    const originalBg = btn.style.background;
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO PAGAMENTO...';
+        btn.disabled = true;
+        btn.style.background = 'linear-gradient(45deg, #666, #888)';
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (isCheckoutModal) {
+            await processCartCheckout();
+        } else {
+            await processSinglePurchase();
+        }
+    } catch (error) {
+        console.error('Erro no pagamento:', error);
+        showPaymentError(error);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        btn.style.background = originalBg;
+    }
+}
+
+async function processSinglePurchase() {
+    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    const licenseKey = 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase();
+    const newPurchase = {
+        id: orderId,
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        licenseKey: licenseKey,
+        amount: parseFloat(selectedProduct.price),
+        currency: selectedCurrency.symbol,
+        status: 'completed',
+        date: new Date().toISOString(),
+        items: [{
+            productId: selectedProduct.id,
+            name: selectedProduct.name,
+            price: parseFloat(selectedProduct.price),
+            quantity: 1
+        }],
+        subtotal: parseFloat(selectedProduct.price),
+        fee: parseFloat(selectedProduct.price) * 0.02,
+        total: parseFloat(selectedProduct.price) * 1.02
+    };
+    userPurchases.push(newPurchase);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
+    showPaymentSuccess({
+        order: newPurchase
+    });
+}
+
+async function processCartCheckout() {
+    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const fee = subtotal * 0.02;
+    const total = subtotal + fee;
+    const newPurchase = {
+        id: orderId,
+        productId: 'cart-checkout',
+        productName: 'Carrinho de Compras',
+        licenseKey: null,
+        amount: total,
+        currency: 'BTC',
+        status: 'completed',
+        date: new Date().toISOString(),
+        items: cart.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            licenseKey: 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase()
+        })),
+        subtotal: subtotal,
+        fee: fee,
+        total: total
+    };
+    newPurchase.items.forEach(item => {
+        const productPurchase = {
+            id: 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            productId: item.productId,
+            productName: item.name,
+            licenseKey: item.licenseKey,
+            amount: item.price * item.quantity,
+            currency: 'BTC',
+            status: 'completed',
+            date: new Date().toISOString(),
+            items: [{
+                productId: item.productId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            }],
+            subtotal: item.price * item.quantity,
+            fee: (item.price * item.quantity) * 0.02,
+            total: (item.price * item.quantity) * 1.02
+        };
+        userPurchases.push(productPurchase);
+    });
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
+    cart = [];
+    saveCart();
+    updateCartModal();
+    showPaymentSuccess({
+        order: newPurchase
+    });
+}
+
+function showPaymentSuccess(paymentData) {
+    closePaymentModal();
+    showMessage('Pagamento confirmado! Suas compras estão disponíveis.', 'success');
+    setTimeout(() => {
+        let receipt = `COMPRA REALIZADA COM SUCESSO!\n\n`;
+        if (isCheckoutModal) {
+            receipt += `Produto: Carrinho de Compras\n`;
+            receipt += `Itens: ${paymentData.order.items.length}\n`;
+            paymentData.order.items.forEach((item, index) => {
+                receipt += `  ${index + 1}. ${item.quantity}x ${item.name}\n`;
+                receipt += `     Chave: ${item.licenseKey}\n`;
+            });
+        } else {
+            receipt += `Produto: ${selectedProduct.name}\n`;
+            receipt += `Chave de Licença: ${paymentData.order.licenseKey}\n`;
+        }
+        receipt += `\nValor: ${paymentData.order.total.toFixed(4)} ${paymentData.order.currency}\n`;
+        receipt += `ID do Pedido: ${paymentData.order.id}\n`;
+        receipt += `Data: ${formatDate(paymentData.order.date)}\n\n`;
+        receipt += `IMPORTANTE:\n`;
+        receipt += `• Guarde as chaves de licença\n`;
+        receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
+        receipt += `• Suporte via Discord: discord.gg/8VPDmnKpQH\n\n`;
+        receipt += `Obrigado por comprar na Lua Works!`;
+        alert(receipt);
+        renderProducts();
+        updateUI();
+    }, 500);
+}
+
+function showPaymentError(error) {
+    showMessage(`Erro no pagamento: ${error.message}`, 'error');
+    setTimeout(() => {
+        if (confirm('Houve um erro no processamento. Deseja tentar novamente ou entrar em contato com o suporte?')) {
+            openPaymentModal(isCheckoutModal ? null : selectedProduct?.id);
+        }
+    }, 1000);
+}
+
+async function downloadProduct(productId) {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        showError('Você precisa estar logado para baixar');
+        openLoginModal();
+        return;
+    }
+    const purchase = userPurchases.find(p => p.productId === productId);
+    if (!purchase) {
+        showError('Você não possui este produto');
+        return;
+    }
+    try {
+        await downloadFromServer(productId, token);
+    } catch (error) {
+        try {
+            const response = await fetch(`/api/download/${productId}`);
+            if (response.ok) {
+                window.open(`/api/download/${productId}`, '_blank');
+            } else {
+                throw new Error('Download não disponível');
+            }
+        } catch (fallbackError) {
+            console.error('Erro no fallback:', fallbackError);
+        }
+    }
+}
+
+async function downloadFromServer(productId, token) {
+    try {
+        showMessage('Iniciando download...', 'info');
+        const response = await fetch(`/api/download/${productId}/authenticated`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+        }
+        let filename = 'download.lua';
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        registerDownload(filename, productId);
+        showMessage('Download iniciado com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro no download do servidor:', error);
+        throw error;
+    }
+}
+
+function registerDownload(filename, productId) {
+    const downloadHistory = JSON.parse(localStorage.getItem('download_history') || '[]');
+    downloadHistory.push({
+        filename: filename,
+        timestamp: new Date().toISOString(),
+        productId: productId
+    });
+    localStorage.setItem('download_history', JSON.stringify(downloadHistory));
+}
+
+async function loginUser(email, password) {
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no login');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
+        currentUser = data.user;
+        userPurchases = data.user.orders || [];
+        updateUI();
+        showMessage('Login realizado com sucesso!', 'success');
+        return { success: true, user: data.user };
+    } catch (error) {
+        console.error('Erro no login:', error);
+        showError(error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+async function registerUser(username, email, password) {
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no registro');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        localStorage.setItem('user_purchases', '[]');
+        currentUser = data.user;
+        userPurchases = [];
+        updateUI();
+        showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
+        return { success: true, user: data.user };
+    } catch (error) {
+        console.error('Erro no registro:', error);
+        showError(error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+function logoutUser() {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_purchases');
+    currentUser = null;
+    userPurchases = [];
+    updateUI();
+    showMessage('Logout realizado com sucesso!', 'info');
+}
+
+function setupEventListeners() {
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modal = this.closest('.modal');
+            if (modal && modal.id === 'paymentModal') {
+                closePaymentModal();
+            } else if (modal && modal.id === 'downloadModal') {
+                closeDownloadModal();
+            } else if (modal) {
+                closeModal(modal.id);
+            }
+        });
+    });
+    document.getElementById('paymentModal')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            closePaymentModal();
+        }
+    });
+    const confirmBtn = document.getElementById('confirmPaymentBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmPayment);
+    }
+    window.copyWalletAddress = function() {
+        const address = document.getElementById('walletAddress')?.textContent;
+        if (!address || address === 'Selecione uma moeda acima') {
+            showError('Selecione uma moeda primeiro');
+            return;
+        }
+        navigator.clipboard.writeText(address).then(() => {
+            showMessage('Endereço copiado para a área de transferência!', 'success');
+            const copyBtn = document.querySelector('.copy-btn');
+            if (copyBtn) {
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                copyBtn.style.background = 'var(--success)';
+                copyBtn.style.color = 'var(--darker-bg)';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.style.background = '';
+                    copyBtn.style.color = '';
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Erro ao copiar:', err);
+            const textArea = document.createElement('textarea');
+            textArea.value = address;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showMessage('Endereço copiado!', 'success');
+        });
+    };
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const filter = this.dataset.filter;
+            filterProducts(filter);
+        });
+    });
+    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+    }
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                toggleMobileMenu();
+            }
+        });
+    });
+    window.addEventListener('resize', () => {
+        const navLinks = document.querySelector('.nav-links');
+        if (window.innerWidth > 768 && navLinks && navLinks.style.display === 'flex') {
+            navLinks.style.display = '';
+            const menuBtn = document.querySelector('.mobile-menu-btn i');
+            if (menuBtn) {
+                menuBtn.className = 'fas fa-bars';
+            }
+        }
+    });
+    document.getElementById('loginBtn')?.addEventListener('click', openLoginModal);
+    document.getElementById('registerBtn')?.addEventListener('click', openRegisterModal);
+    document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
+    document.getElementById('cartBtn')?.addEventListener('click', toggleCartModal);
+    document.querySelectorAll('.close-cart').forEach(btn => {
+        btn.addEventListener('click', closeCartModal);
+    });
+    document.getElementById('checkoutBtn')?.addEventListener('click', function() {
+        closeCartModal();
+        openPaymentModal();
+    });
+}
+
+function toggleCartModal() {
+    const cartModal = document.getElementById('cartModal');
+    cartModal.classList.toggle('active');
+    document.body.style.overflow = cartModal.classList.contains('active') ? 'hidden' : 'auto';
+    if (cartModal.classList.contains('active')) {
+        updateCartModal();
+    }
+}
+
+function closeCartModal() {
+    const cartModal = document.getElementById('cartModal');
+    cartModal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function setupAnimations() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('fade-in');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+    document.querySelectorAll('.product-card, .feature-card, .expertise-item, .stat-card').forEach(el => {
+        observer.observe(el);
+    });
+}
+
+function filterProducts(filter) {
+    const productCards = document.querySelectorAll('.product-card');
+    const noResults = document.getElementById('noResults');
+    let visibleCount = 0;
+    productCards.forEach(card => {
+        const isUpcoming = card.dataset.upcoming === 'true';
+        const category = card.dataset.category;
+        const productId = card.dataset.id;
+        let show = false;
+        switch(filter) {
+            case 'all':
+                show = true;
+                break;
+            case 'upcoming':
+                show = isUpcoming;
+                break;
+            case 'purchased':
+                show = userPurchases.some(p => p.productId === productId);
+                break;
+            default:
+                show = category === filter && !isUpcoming;
+                break;
+        }
+        if (show) {
+            card.style.display = 'block';
+            visibleCount++;
+            card.style.animationDelay = `${visibleCount * 0.05}s`;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    if (noResults) {
+        if (visibleCount === 0) {
+            noResults.style.display = 'block';
+        } else {
+            noResults.style.display = 'none';
+        }
+    }
+    console.log(`Filtro "${filter}" aplicado: ${visibleCount} produtos visíveis`);
+}
+
+function toggleMobileMenu() {
+    const navLinks = document.querySelector('.nav-links');
+    const menuBtn = document.querySelector('.mobile-menu-btn i');
+    if (!navLinks || !menuBtn) return;
+    if (navLinks.style.display === 'flex') {
+        navLinks.style.display = 'none';
+        menuBtn.className = 'fas fa-bars';
+    } else {
+        navLinks.style.display = 'flex';
+        menuBtn.className = 'fas fa-times';
+    }
+}
+
+function updateUI() {
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const userMenu = document.getElementById('userMenu');
+    if (currentUser) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (registerBtn) registerBtn.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'block';
+        if (userMenu) {
+            userMenu.innerHTML = `
+                <div class="user-info">
+                    <img src="${currentUser.profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.username)}&background=00ff88&color=000&bold=true&size=256`}" alt="${currentUser.username}" class="user-avatar">
+                    <span class="username">${currentUser.username}</span>
+                    ${currentUser.isAdmin ? '<span class="admin-badge" style="background: #ff3366; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">ADMIN</span>' : ''}
+                </div>
+                <div class="user-dropdown">
+                    <a href="#" onclick="openPurchasesModal()"><i class="fas fa-shopping-bag"></i> Minhas Compras</a>
+                    ${currentUser.isAdmin ? '<a href="admin-dashboard.html" target="_blank"><i class="fas fa-user-secret"></i> Painel Admin</a>' : ''}
+                    <a href="#" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                </div>
+            `;
+            userMenu.style.display = 'flex';
+        }
+    } else {
+        if (loginBtn) loginBtn.style.display = 'block';
+        if (registerBtn) registerBtn.style.display = 'block';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        if (userMenu) userMenu.style.display = 'none';
+    }
+    renderProducts();
+}
+
+function openPurchasesModal() {
+    if (!currentUser) {
+        showError('Você precisa estar logado para ver suas compras');
+        return;
+    }
+    if (userPurchases.length === 0) {
+        showMessage('Você ainda não fez nenhuma compra', 'info');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'purchasesModal';
+    modal.innerHTML = `
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><i class="fas fa-shopping-bag"></i> Minhas Compras</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="purchases-tabs">
+                    <button class="purchase-tab active" data-tab="all">Todas as Compras</button>
+                    <button class="purchase-tab" data-tab="completed">Concluídas</button>
+                    <button class="purchase-tab" data-tab="cancelled">Canceladas</button>
+                </div>
+                <div class="purchases-content">
+                    <div class="purchases-grid" id="purchasesGrid">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('purchasesModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('purchasesModal');
+    });
+    modal.querySelectorAll('.purchase-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            modal.querySelectorAll('.purchase-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const tab = this.dataset.tab;
+            renderPurchases(tab);
+        });
+    });
+    renderPurchases('all');
+}
+
+function renderPurchases(filter = 'all') {
+    const container = document.getElementById('purchasesGrid');
+    if (!container) return;
+    let filteredPurchases = userPurchases;
+    if (filter !== 'all') {
+        filteredPurchases = userPurchases.filter(purchase => purchase.status === filter);
+    }
+    if (filteredPurchases.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                <i class="fas fa-shopping-bag" style="font-size: 4rem; color: var(--dark-text); margin-bottom: 20px;"></i>
+                <h3 style="color: var(--light-text); margin-bottom: 15px;">Nenhuma compra encontrada</h3>
+                <p style="color: var(--medium-text);">Você não tem compras ${filter === 'all' ? '' : filter === 'completed' ? 'concluídas' : 'canceladas'}.</p>
+            </div>
+        `;
+        return;
+    }
+    container.innerHTML = filteredPurchases.map(purchase => {
+        const isCartCheckout = purchase.productId === 'cart-checkout';
+        return `
+            <div class="purchase-card">
+                <div class="purchase-header">
+                    <div>
+                        <h4>${escapeHtml(purchase.productName)}</h4>
+                        <div class="purchase-id">${purchase.id}</div>
+                    </div>
+                    <div class="purchase-status ${purchase.status}">
+                        ${purchase.status === 'completed' ? 'CONCLUÍDO' : purchase.status === 'pending' ? 'PENDENTE' : 'CANCELADO'}
+                    </div>
+                </div>
+                ${isCartCheckout ? `
+                    <div class="purchase-items">
+                        <h5>Itens da Compra:</h5>
+                        ${purchase.items.map(item => `
+                            <div style="display: flex; justify-content: space-between; margin: 5px 0; padding: 5px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                                <span>${item.quantity}x ${item.name}</span>
+                                <span>${(item.price * item.quantity).toFixed(4)} BTC</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div class="purchase-product">
+                        <div class="purchase-product-image">
+                            <i class="${getProductIcon(products.find(p => p.id === purchase.productId)?.category)}"></i>
+                        </div>
+                        <div class="purchase-product-info">
+                            <h4>${escapeHtml(purchase.productName)}</h4>
+                            <p>Chave: ${purchase.licenseKey}</p>
+                        </div>
+                    </div>
+                `}
+                <div class="purchase-meta">
+                    <div>
+                        <i class="fas fa-calendar"></i> ${formatDate(purchase.date)}
+                    </div>
+                    <div>
+                        <i class="fas fa-box"></i> ${purchase.items?.length || 1} item(s)
+                    </div>
+                </div>
+                <div class="purchase-total">
+                    Total: ${purchase.total.toFixed(4)} ${purchase.currency}
+                </div>
+                <div class="purchase-actions">
+                    ${purchase.status === 'completed' ? `
+                        ${isCartCheckout ? `
+                            <button class="btn btn-success" onclick="downloadCartPurchase('${purchase.id}')">
+                                <i class="fas fa-download"></i> Baixar Tudo
+                            </button>
+                        ` : `
+                            <button class="btn btn-success" onclick="downloadProduct('${purchase.productId}')">
+                                <i class="fas fa-download"></i> Baixar
+                            </button>
+                        `}
+                    ` : ''}
+                    <button class="btn btn-info" onclick="viewPurchaseDetails('${purchase.id}')">
+                        <i class="fas fa-info-circle"></i> Detalhes
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function downloadCartPurchase(purchaseId) {
+    const purchase = userPurchases.find(p => p.id === purchaseId);
+    if (!purchase || !purchase.items) {
+        showError('Compra não encontrada');
+        return;
+    }
+    purchase.items.forEach(item => {
+        setTimeout(() => {
+            downloadProduct(item.productId);
+        }, item.productId.charCodeAt(0) % 1000);
+    });
+    showMessage('Downloads iniciados! Verifique seus arquivos.', 'success');
+}
+
+function viewPurchaseDetails(purchaseId) {
+    const purchase = userPurchases.find(p => p.id === purchaseId);
+    if (!purchase) {
+        showError('Compra não encontrada');
+        return;
+    }
+    const isCartCheckout = purchase.productId === 'cart-checkout';
+    let details = `DETALHES DA COMPRA\n\n`;
+    details += `ID: ${purchase.id}\n`;
+    details += `Produto: ${purchase.productName}\n`;
+    details += `Status: ${purchase.status === 'completed' ? 'Concluído' : purchase.status === 'pending' ? 'Pendente' : 'Cancelado'}\n`;
+    details += `Data: ${formatDate(purchase.date)}\n`;
+    details += `Valor: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
+    if (isCartCheckout) {
+        details += `ITENS:\n`;
+        purchase.items.forEach((item, index) => {
+            details += `${index + 1}. ${item.quantity}x ${item.name}\n`;
+            details += `   Preço: ${item.price.toFixed(4)} ${purchase.currency}\n`;
+            details += `   Subtotal: ${(item.price * item.quantity).toFixed(4)} ${purchase.currency}\n`;
+            details += `   Chave: ${item.licenseKey}\n\n`;
+        });
+    } else {
+        details += `CHAVE DE LICENÇA:\n${purchase.licenseKey}\n\n`;
+    }
+    details += `RESUMO FINANCEIRO:\n`;
+    details += `Subtotal: ${purchase.subtotal.toFixed(4)} ${purchase.currency}\n`;
+    details += `Taxa (2%): ${purchase.fee.toFixed(4)} ${purchase.currency}\n`;
+    details += `Total: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
+    details += `Para suporte, entre em contato:\n`;
+    details += `Email: support@luaworks.dev\n`;
+    details += `Discord: https://discord.gg/8VPDmnKpQH`;
+    alert(details);
+}
+
+function openLoginModal() {
+    closeAllModals();
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'loginModal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Senha</label>
+                        <input type="password" id="loginPassword" required placeholder="Sua senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+                </form>
+                <p class="auth-switch">Não tem conta? <a href="#" onclick="openRegisterModal()">Registre-se</a></p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('loginModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('loginModal');
+    });
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const result = await loginUser(email, password);
+        if (result.success) {
+            closeModal('loginModal');
+        }
+    });
+}
+
+function openRegisterModal() {
+    closeAllModals();
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'registerModal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus"></i> Registro</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerUsername">Nome de Usuário</label>
+                        <input type="text" id="registerUsername" required minlength="3" maxlength="20" placeholder="Seu nome de usuário">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Senha</label>
+                        <input type="password" id="registerPassword" required minlength="6" placeholder="Mínimo 6 caracteres">
+                    </div>
+                    <div class="form-group">
+                        <label for="registerConfirm">Confirmar Senha</label>
+                        <input type="password" id="registerConfirm" required minlength="6" placeholder="Confirme sua senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Criar Conta</button>
+                </form>
+                <p class="auth-switch">Já tem conta? <a href="#" onclick="openLoginModal()">Faça login</a></p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('registerModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('registerModal');
+    });
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('registerUsername').value;
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const confirmPassword = document.getElementById('registerConfirm').value;
+        if (password !== confirmPassword) {
+            showError('As senhas não coincidem');
+            return;
+        }
+        const result = await registerUser(username, email, password);
+        if (result.success) {
+            closeModal('registerModal');
+        }
+    });
+}
+
+function closeAllModals() {
+    document.querySelectorAll('.modal').forEach(modal => {
+        if (modal.id !== 'paymentModal' && modal.id !== 'cartModal' && modal.id !== 'downloadModal') {
+            modal.remove();
+        }
+    });
+    document.body.style.overflow = 'auto';
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.style.opacity = '0';
+        modalContent.style.transform = 'translateY(-50px)';
+    }
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        modal.remove();
+    }, 300);
+}
+
+function getCategoryColor(category) {
+    const colors = {
+        'automation': '#00ff88',
+        'bot': '#0099ff',
+        'system': '#ff00ff',
+        'utility': '#ffaa00',
+        'tool': '#ff3366'
+    };
+    return colors[category] || '#00ff88';
+}
+
+function getCategoryIcon(category) {
+    const icons = {
+        'automation': 'fas fa-robot',
+        'bot': 'fas fa-brain',
+        'system': 'fas fa-bolt',
+        'utility': 'fas fa-tools',
+        'tool': 'fas fa-wrench'
+    };
+    return icons[category] || 'fas fa-code';
+}
+
+function getProductIcon(category) {
+    const icons = {
+        'automation': 'fas fa-robot',
+        'bot': 'fas fa-brain',
+        'system': 'fas fa-bolt',
+        'utility': 'fas fa-tools',
+        'tool': 'fas fa-wrench'
+    };
+    return icons[category] || 'fas fa-file-code';
+}
+
+function getCategoryName(category) {
+    const names = {
+        'automation': 'Automação',
+        'bot': 'Bot',
+        'system': 'Sistema',
+        'utility': 'Utilitário',
+        'tool': 'Ferramenta'
+    };
+    return names[category] || 'Automação';
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return 'Data não disponível';
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showMessage(message, type = 'info') {
+    let container = document.getElementById('messageContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'messageContainer';
+        document.body.appendChild(container);
+    }
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    messageDiv.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(messageDiv);
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (messageDiv.parentNode === container) {
+                container.removeChild(messageDiv);
+            }
+        }, 300);
+    }, 5000);
+}
+
+function showError(message) {
+    showMessage(message, 'error');
+}
+
+function viewProductDetails(productId) {
+    const product = products.find(p => p.id === productId) || 
+                    upcomingProducts.find(p => p.id === productId);
+    if (!product) {
+        showError('Produto não encontrado');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'productDetailsModal';
+    modal.innerHTML = `
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>${escapeHtml(product.name)}</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="product-details">
+                    <div class="product-details-header">
+                        <div class="product-image-large">
+                            <i class="${getProductIcon(product.category)}"></i>
+                        </div>
+                        <div class="product-info">
+                            <h3>${escapeHtml(product.name)}</h3>
+                            <p class="product-description">${escapeHtml(product.description)}</p>
+                            <div class="product-meta-details">
+                                <span class="product-category ${product.category}">
+                                    <i class="${getCategoryIcon(product.category)}"></i> ${getCategoryName(product.category)}
+                                </span>
+                                <div class="product-rating">
+                                    ${renderStars(product.rating || 0)}
+                                    <span class="rating-text">${product.rating || 'N/A'} (${product.downloads || 0} downloads)</span>
+                                </div>
+                            </div>
+                            <div class="product-price-details">
+                                <div class="price-main">${product.price} ${product.currency}</div>
+                                ${product.originalPrice ? `<div class="price-original">${product.originalPrice} ${product.currency}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="product-details-content">
+                        <div class="details-section">
+                            <h4><i class="fas fa-star"></i> Recursos Principais</h4>
+                            <ul class="features-list">
+                                ${(product.features || []).map(feature => `
+                                    <li><i class="fas fa-check"></i> ${escapeHtml(feature)}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <div class="details-section">
+                            <h4><i class="fas fa-info-circle"></i> Informações Técnicas</h4>
+                            <div class="technical-info">
+                                <div class="info-row">
+                                    <span class="info-label">Versão:</span>
+                                    <span class="info-value">${product.version || '1.0.0'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Tamanho:</span>
+                                    <span class="info-value">${product.fileSize || 'N/A'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Atualizado em:</span>
+                                    <span class="info-value">${formatDate(product.lastUpdate || product.uploadDate)}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Desenvolvedor:</span>
+                                    <span class="info-value">${product.developer || 'Lua Works Team'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="details-section">
+                            <h4><i class="fas fa-shopping-cart"></i> Comprar</h4>
+                            <div class="purchase-actions">
+                                ${product.status === 'upcoming' ? `
+                                    <button class="btn btn-secondary" disabled>
+                                        <i class="fas fa-clock"></i> Em Breve
+                                    </button>
+                                    <p class="upcoming-info">Lançamento previsto: ${product.expectedRelease ? formatDate(product.expectedRelease) : 'Em breve'}</p>
+                                ` : userPurchases.some(p => p.productId === product.id) ? `
+                                    <button class="btn btn-success" onclick="downloadProduct('${product.id}'); closeModal('productDetailsModal')">
+                                        <i class="fas fa-download"></i> Baixar Agora
+                                    </button>
+                                    <p class="purchased-info">Você já possui este produto</p>
+                                ` : `
+                                    </button>
+                                    <button class="btn btn-primary" onclick="openPaymentModal('${product.id}'); closeModal('productDetailsModal')">
+                                        <i class="fas fa-shopping-cart"></i> Comprar Agora
+                                    </button>
+                                    <p class="price-info">Apenas ${product.price} ${product.currency}</p>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('productDetailsModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('productDetailsModal');
+    });
+}
+
+function setupAdminSystem() {
+    document.addEventListener('keydown', (e) => {
+        adminSequence.push(e.code);
+        if (adminSequence.length > adminPassword.length) {
+            adminSequence.shift();
+        }
+        if (JSON.stringify(adminSequence) === JSON.stringify(adminPassword)) {
+            activateAdminMode();
+        }
+    });
+    const logo = document.querySelector('.logo');
+    if (logo) {
+        let clickCount = 0;
+        let clickTimer;
+        logo.addEventListener('click', () => {
+            clickCount++;
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+            }
+            clickTimer = setTimeout(() => {
+                if (clickCount >= 3) {
+                    showAdminAccessPanel();
+                }
+                clickCount = 0;
+            }, 500);
+        });
+    }
+}
+
+function activateAdminMode() {
+    if (!currentUser?.isAdmin) {
+        showMessage('Admin: Usuário não tem permissões', 'error');
+        return;
+    }
+    adminEnabled = true;
+    const indicator = document.createElement('div');
+    indicator.id = 'adminIndicator';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(45deg, #ff3366, #ff00ff);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: bold;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        opacity: 0.8;
+    `;
+    indicator.innerHTML = '<i class="fas fa-user-secret"></i> ADMIN MODE';
+    document.body.appendChild(indicator);
+    addAdminFloatingButton();
+    showMessage('Modo Administrador ativado! Acesso completo liberado.', 'success');
+    console.log('Modo admin ativado');
+}
+
+function addAdminFloatingButton() {
+    const floatingBtn = document.createElement('button');
+    floatingBtn.id = 'adminFloatingBtn';
+    floatingBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #ff3366, #ff00ff);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 24px;
+        z-index: 9998;
+        box-shadow: 0 5px 15px rgba(255, 51, 102, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    `;
+    floatingBtn.innerHTML = '<i class="fas fa-cogs"></i>';
+    floatingBtn.addEventListener('mouseenter', () => {
+        floatingBtn.style.transform = 'scale(1.1)';
+        floatingBtn.style.boxShadow = '0 8px 25px rgba(255, 51, 102, 0.5)';
+    });
+    floatingBtn.addEventListener('mouseleave', () => {
+        floatingBtn.style.transform = 'scale(1)';
+        floatingBtn.style.boxShadow = '0 5px 15px rgba(255, 51, 102, 0.3)';
+    });
+    floatingBtn.addEventListener('click', function() {
+        window.open('admin-dashboard.html', '_blank');
+    });
+    document.body.appendChild(floatingBtn);
+}
+
+function showAdminAccessPanel() {
+    if (!currentUser) {
+        showMessage('Faça login primeiro', 'warning');
+        return;
+    }
+    if (!currentUser.isAdmin) {
+        showMessage('Acesso negado: Permissões insuficientes', 'error');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'adminAccessModal';
+    modal.style.cssText = `
+        background: rgba(0, 0, 0, 0.95);
+        align-items: center;
+        justify-content: center;
+    `;
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px; background: linear-gradient(135deg, #1a1a2e, #0f0f23);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255, 51, 102, 0.3);">
+                <h2><i class="fas fa-user-secret"></i> Acesso Administrativo</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 4rem; color: #ff3366; margin-bottom: 20px;">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 style="color: #ffffff; margin-bottom: 10px;">Olá, ${currentUser.username}!</h3>
+                    <p style="color: #aaccff; margin-bottom: 30px;">Nível de acesso: Administrador</p>
+                </div>
+                <div style="display: grid; gap: 15px; margin-bottom: 30px;">
+                    <a href="admin-dashboard.html" target="_blank" class="btn btn-primary" style="justify-content: center; text-decoration: none;">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('adminAccessModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('adminAccessModal');
+    });
+}
+
+function showAdminDashboard() {
+    window.open('admin-dashboard.html', '_blank');
+}
+
+setTimeout(() => {
+    if (!currentUser) {
+        const existingAdmin = localStorage.getItem('lua_works_admin_created');
+        if (!existingAdmin) {
+            const adminUser = {
+                id: '***********************8',
+                username: '********',
+                email: '***********8',
+                profile: {
+                    avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff3366&color=ffffff'
+                },
+                isAdmin: true,
+                joinDate: new Date().toISOString()
+            };
+            const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
+            localStorage.setItem('auth_token', adminToken);
+            localStorage.setItem('user_data', JSON.stringify(adminUser));
+            localStorage.setItem('user_purchases', '[]');
+            localStorage.setItem('lua_works_admin_created', 'true');
+        }
+    }
+}, 2000);
+
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    try {
+        const socket = new WebSocket('ws://localhost:3001');
+        socket.onmessage = (event) => {
+            if (event.data === 'reload') {
+                console.log('Recebido comando de recarregar...');
+                location.reload();
+            }
+        };
+        socket.onerror = () => {
+        };
+    } catch (e) {
+    }
+}
+
+window.openPaymentModal = openPaymentModal;
+window.selectCurrency = selectCurrency;
+window.copyWalletAddress = copyWalletAddress;
+window.confirmPayment = confirmPayment;
+window.filterProducts = filterProducts;
+window.toggleMobileMenu = toggleMobileMenu;
+window.downloadProduct = downloadProduct;
+window.viewProductDetails = viewProductDetails;
+window.loginUser = loginUser;
+window.logoutUser = logoutUser;
+window.openLoginModal = openLoginModal;
+window.openRegisterModal = openRegisterModal;
+window.closeModal = closeModal;
+window.closeDownloadModal = closeDownloadModal;
+window.copyToClipboard = copyToClipboard;
+window.downloadAllFiles = downloadAllFiles;
+window.downloadFile = downloadFile;
+window.downloadCartPurchase = downloadCartPurchase;
+window.viewPurchaseDetails = viewPurchaseDetails;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.openPurchasesModal = openPurchasesModal;
+window.showAdminAccessPanel = showAdminAccessPanel;
+window.showAdminDashboard = showAdminDashboard;cle

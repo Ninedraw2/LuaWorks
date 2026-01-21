@@ -11,7 +11,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || 'X7!qF-A19ZZx=19xmv;08psjdcnz1X7Ax99ax1599,+391sbQH^^a1AB2';
+const SECRET_KEY = process.env.JWT_SECRET || '66e2860d1de0f99a235edff69876c8db6db1e946997bf9196905d83ba6ae518fe8ddfc2646b2164848d36146275e586eb018a211165bf3f079baa1a6b799fd04';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
@@ -1371,5 +1371,18 @@ async function startServer() {
         process.exit(1);
     }
 }
+
+const axios = require("axios");
+
+const SELF_URL = "https://luaworks.onrender.com"; 
+
+setInterval(async () => {
+  try {
+    const res = await axios.get(SELF_URL + "/health");
+    console.log("🔁 Ping enviado:", res.status);
+  } catch (err) {
+    console.error("⚠️ Erro no ping:", err.message);
+  }
+}, 60 * 1000);
 
 startServer().catch(console.error);

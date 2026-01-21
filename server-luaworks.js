@@ -1372,17 +1372,4 @@ async function startServer() {
     }
 }
 
-const axios = require("axios");
-
-const SELF_URL = "https://luaworks.onrender.com"; 
-
-setInterval(async () => {
-  try {
-    const res = await axios.get(SELF_URL + "/health");
-    console.log("🔁 Ping enviado:", res.status);
-  } catch (err) {
-    console.error("⚠️ Erro no ping:", err.message);
-  }
-}, 60 * 1000);
-
 startServer().catch(console.error);

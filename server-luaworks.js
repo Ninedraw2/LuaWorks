@@ -12,12 +12,32 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const validator = require('validator');
-const cryptoRandomString = require('crypto-random-string');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || cryptoRandomString({length: 128});
+
+// Função para gerar strings aleatórias usando crypto nativo
+function generateRandomString(length, type = 'base64') {
+    if (type === 'alphanumeric') {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    } else if (type === 'base64') {
+        return crypto.randomBytes(Math.ceil(length * 3 / 4))
+            .toString('base64')
+            .slice(0, length)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_');
+    } else {
+        return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
+    }
+}
+
+const SECRET_KEY = process.env.JWT_SECRET || generateRandomString(128, 'base64');
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
@@ -283,6 +303,7 @@ async function recordFailedAttempt(ip, identifier) {
         });
         await writeDatabase('security.json', securityDb);
     } catch (error) {
+        // Ignorar erro
     }
 }
 
@@ -312,7 +333,7 @@ async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
     try {
         const logsDb = await readDatabase('logs.json');
         logsDb.logs.push({
-            id: `LOG-${Date.now()}-${cryptoRandomString({length: 8})}`,
+            id: `LOG-${Date.now()}-${generateRandomString(8, 'alphanumeric')}`,
             event,
             details: validator.escape(details.substring(0, 1000)),
             userId,
@@ -326,6 +347,7 @@ async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
         
         await writeDatabase('logs.json', logsDb);
     } catch (error) {
+        // Ignorar erro
     }
 }
 
@@ -347,7 +369,7 @@ async function syncAdminUser() {
             const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
             
             const adminUser = {
-                id: 'admin-' + Date.now().toString() + '-' + cryptoRandomString({length: 8}),
+                id: 'admin-' + Date.now().toString() + '-' + generateRandomString(8, 'alphanumeric'),
                 username: ADMIN_USERNAME,
                 email: ADMIN_EMAIL,
                 password: hashedPassword,
@@ -990,7 +1012,7 @@ app.post('/api/admin/products', authenticateToken, async (req, res) => {
         const productsDb = await readDatabase('products.json');
         
         const newProduct = {
-            id: `prod-${Date.now()}-${cryptoRandomString({length: 12})}`,
+            id: `prod-${Date.now()}-${generateRandomString(12, 'alphanumeric')}`,
             name: validator.escape(productData.name.substring(0, 255)),
             description: validator.escape(productData.description.substring(0, 500)),
             longDescription: productData.longDescription ? validator.escape(productData.longDescription.substring(0, 5000)) : '',
@@ -1104,6 +1126,7 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
                 await fs.unlink(filePath);
                 await logActivity('FILE_DELETED', `Arquivo removido: ${deletedProduct.filePath}`, user.id, req.ip);
             } catch (error) {
+                // Ignorar erro se arquivo não existir
             }
         }
 
@@ -1224,7 +1247,7 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 12);
         
         const newUser = {
-            id: Date.now().toString() + '-' + cryptoRandomString({length: 8}),
+            id: Date.now().toString() + '-' + generateRandomString(8, 'alphanumeric'),
             username: validator.escape(username),
             email: validator.normalizeEmail(email),
             password: hashedPassword,
@@ -1597,6 +1620,7 @@ app.get('/api/admin/backup', authenticateToken, async (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename="lua-works-backup-${timestamp}.zip"`);
             res.download(backupFile, (err) => {
                 if (err) {
+                    // Ignorar erro
                 }
                 fs.unlink(backupFile).catch(() => {});
             });
@@ -1655,15 +1679,15 @@ async function startServer() {
 
         await syncAdminUser();
 
-        console.log(`Servidor Lua Works iniciado com sucesso.`);
-
         app.listen(PORT, () => {
-            console.log(`Servidor rodando na porta ${PORT}`);
+            console.log(`Servidor Lua Works rodando na porta ${PORT}`);
         });
-
     } catch (error) {
         console.error('Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 }
-startServer().catch(() => {});
+
+startServer().catch((error) => {
+    console.error('Erro fatal:', error);
+});

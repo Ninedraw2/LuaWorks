@@ -4,8 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin | Lua Works</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Usando ícones emoji como alternativa ao Font Awesome -->
     <style>
+        /* Ícones emoji personalizados */
+        .fas, .fa {
+            font-style: normal;
+            font-weight: normal;
+            display: inline-block;
+            text-align: center;
+            width: 1.25em;
+        }
+        
+        .fa-chart-line:before { content: "📊"; }
+        .fa-plus-circle:before { content: "➕"; }
+        .fa-boxes:before { content: "📦"; }
+        .fa-calendar-alt:before { content: "📅"; }
+        .fa-shield-alt:before { content: "🛡️"; }
+        .fa-store:before { content: "🏪"; }
+        .fa-sign-out-alt:before { content: "🚪"; }
+        .fa-clock:before { content: "🕒"; }
+        .fa-save:before { content: "💾"; }
+        .fa-times:before { content: "❌"; }
+        .fa-plus:before { content: "➕"; }
+        .fa-edit:before { content: "✏️"; }
+        .fa-trash:before { content: "🗑️"; }
+        .fa-check:before { content: "✅"; }
+        .fa-file-archive:before { content: "📁"; }
+        .fa-cloud-upload-alt:before { content: "☁️⬆️"; }
+        .fa-check-circle:before { content: "✅"; }
+        .fa-exclamation-circle:before { content: "⚠️"; }
+        .fa-info-circle:before { content: "ℹ️"; }
+        .fa-exclamation-triangle:before { content: "⚠️"; }
+        .fa-box-open:before { content: "📦"; }
+        .fa-spinner:before { content: "🔄"; }
+        .fa-spinner.fa-spin:before { 
+            content: "🔄";
+            animation: spin 1s linear infinite; 
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Resto do CSS */
         * {
             margin: 0;
             padding: 0;
@@ -24,7 +67,6 @@
             min-height: 100vh;
         }
         
-
         .sidebar {
             width: 250px;
             background: #0a0a15;
@@ -57,7 +99,6 @@
             letter-spacing: 2px;
         }
         
-
         .menu {
             display: flex;
             flex-direction: column;
@@ -444,7 +485,6 @@
             font-size: 13px;
         }
         
-
         .message-container {
             position: fixed;
             top: 20px;
@@ -493,7 +533,6 @@
             color: #0095ff;
         }
         
-
         .loading {
             text-align: center;
             padding: 40px;
@@ -515,7 +554,6 @@
             100% { transform: rotate(360deg); }
         }
         
-
         .progress-container {
             margin-top: 10px;
         }
@@ -544,7 +582,6 @@
             margin-top: 5px;
         }
         
-
         @media (max-width: 768px) {
             .dashboard-wrapper {
                 flex-direction: column;
@@ -590,7 +627,6 @@
             }
         }
         
-
         .mb-20 { margin-bottom: 20px; }
         .mt-20 { margin-top: 20px; }
         .d-flex { display: flex; }
@@ -603,7 +639,6 @@
 </head>
 <body>
     <div class="dashboard-wrapper">
-
         <div class="sidebar">
             <div class="logo">
                 <h1>LUA WORKS</h1>
@@ -635,9 +670,7 @@
             </nav>
         </div>
         
-
         <div class="main-content">
-
             <div class="header">
                 <div>
                     <h2 id="tabTitle">Dashboard Administrativo</h2>
@@ -840,7 +873,6 @@
         </div>
     </div>
     
-
     <div class="message-container" id="messageContainer"></div>
     
     <script>
@@ -1837,7 +1869,6 @@
             }
         }
         
-
         function showTab(tabName) {
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('active');

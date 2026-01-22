@@ -12,12 +12,12 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const validator = require('validator');
-const { cryptoRandomString } = require('crypto-random-string');
+const cryptoRandomString = require('crypto-random-string');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || cryptoRandomString({length: 128, type: 'base64'});
+const SECRET_KEY = process.env.JWT_SECRET || cryptoRandomString({length: 128});
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
@@ -312,7 +312,7 @@ async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
     try {
         const logsDb = await readDatabase('logs.json');
         logsDb.logs.push({
-            id: `LOG-${Date.now()}-${cryptoRandomString({length: 8, type: 'alphanumeric'})}`,
+            id: `LOG-${Date.now()}-${cryptoRandomString({length: 8})}`,
             event,
             details: validator.escape(details.substring(0, 1000)),
             userId,
@@ -347,7 +347,7 @@ async function syncAdminUser() {
             const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
             
             const adminUser = {
-                id: 'admin-' + Date.now().toString() + '-' + cryptoRandomString({length: 8, type: 'alphanumeric'}),
+                id: 'admin-' + Date.now().toString() + '-' + cryptoRandomString({length: 8}),
                 username: ADMIN_USERNAME,
                 email: ADMIN_EMAIL,
                 password: hashedPassword,
@@ -990,7 +990,7 @@ app.post('/api/admin/products', authenticateToken, async (req, res) => {
         const productsDb = await readDatabase('products.json');
         
         const newProduct = {
-            id: `prod-${Date.now()}-${cryptoRandomString({length: 12, type: 'alphanumeric'})}`,
+            id: `prod-${Date.now()}-${cryptoRandomString({length: 12})}`,
             name: validator.escape(productData.name.substring(0, 255)),
             description: validator.escape(productData.description.substring(0, 500)),
             longDescription: productData.longDescription ? validator.escape(productData.longDescription.substring(0, 5000)) : '',
@@ -1224,7 +1224,7 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 12);
         
         const newUser = {
-            id: Date.now().toString() + '-' + cryptoRandomString({length: 8, type: 'alphanumeric'}),
+            id: Date.now().toString() + '-' + cryptoRandomString({length: 8}),
             username: validator.escape(username),
             email: validator.normalizeEmail(email),
             password: hashedPassword,
@@ -1643,7 +1643,7 @@ async function startServer() {
                 await fs.access(path.join(DB_PATH, file));
             } catch {
                 if (file === 'users.json') await writeDatabase(file, { users: [] });
-                else if (file === 'products.json') await writeDatabase(file, [] );
+                else if (file === 'products.json') await writeDatabase(file, []);
                 else if (file === 'orders.json') await writeDatabase(file, { orders: [] });
                 else if (file === 'stats.json') await writeDatabase(file, await generateRealStats());
                 else if (file === 'downloads.json') await writeDatabase(file, { downloads: [] });
@@ -1655,11 +1655,15 @@ async function startServer() {
 
         await syncAdminUser();
 
+        console.log(`Servidor Lua Works iniciado com sucesso.`);
+
         app.listen(PORT, () => {
+            console.log(`Servidor rodando na porta ${PORT}`);
         });
+
     } catch (error) {
+        console.error('Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 }
-
 startServer().catch(() => {});

@@ -1,10 +1,3 @@
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
-const crypto = require('crypto');
-require('dotenv').config();
-
 const API_BASE = '/api';
 let products = [];
 let upcomingProducts = [];
@@ -17,152 +10,108 @@ let cart = [];
 let isCheckoutModal = false;
 let adminEnabled = false;
 let adminSequence = [];
-
-const sampleUpcoming = [];
-
-const adminPassword = ["KeyA", "KeyB", "KeyC", "KeyD", "KeyE"];
+const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
 
 const sampleProducts = [
     {
-        id: 'autobot-pro',
-        name: 'AutoBot Pro',
-        description: 'Sistema de automação avançado para Roblox',
-        price: '0.0025',
-        currency: 'BTC',
+        id: 'auto-farm-1',
+        name: 'Auto Farm Supreme',
+        description: 'Sistema de farm automático com anti-ban avançado',
         category: 'automation',
-        features: ['Anti-ban system', 'Auto-update', '24/7 suporte'],
+        price: '0.005',
+        currency: 'BTC',
+        originalPrice: '0.008',
+        discount: 37,
         rating: 4.8,
         downloads: 124,
         version: '2.1',
-        fileSize: '1.2MB',
-        uploadDate: new Date().toISOString(),
-        featured: true
+        fileSize: '15KB',
+        features: ['Anti-ban system', 'Multi-threaded', 'Auto-update', 'GUI configurável'],
+        uploadDate: '2024-01-15',
+        featured: true,
+        status: 'available'
+    },
+    {
+        id: 'bot-system-1',
+        name: 'Bot Manager Pro',
+        description: 'Gerenciador de múltiplos bots simultâneos',
+        category: 'bot',
+        price: '0.008',
+        currency: 'BTC',
+        rating: 4.5,
+        downloads: 89,
+        version: '1.3',
+        fileSize: '25KB',
+        features: ['Multi-account', 'Proxy support', 'Task scheduler', 'Log system'],
+        uploadDate: '2024-01-10',
+        status: 'available'
+    },
+    {
+        id: 'sys-optimizer',
+        name: 'System Optimizer',
+        description: 'Otimizador de performance para scripts Lua',
+        category: 'system',
+        price: '0.003',
+        currency: 'BTC',
+        rating: 4.9,
+        downloads: 210,
+        version: '3.0',
+        fileSize: '8KB',
+        features: ['FPS boost', 'Memory optimizer', 'Cache system', 'Error handler'],
+        uploadDate: '2024-01-05',
+        status: 'available'
+    },
+    {
+        id: 'utility-pack',
+        name: 'Utility Pack Deluxe',
+        description: 'Coleção de utilitários para desenvolvimento',
+        category: 'utility',
+        price: '0.006',
+        currency: 'BTC',
+        originalPrice: '0.010',
+        discount: 40,
+        rating: 4.7,
+        downloads: 156,
+        version: '1.5',
+        fileSize: '30KB',
+        features: ['Debug tools', 'Code formatter', 'Library manager', 'Template system'],
+        uploadDate: '2024-01-12',
+        featured: true,
+        status: 'available'
+    },
+    {
+        id: 'security-suite',
+        name: 'Security Suite Pro',
+        description: 'Pacote completo de segurança para scripts',
+        category: 'tool',
+        price: '0.009',
+        currency: 'BTC',
+        rating: 4.6,
+        downloads: 78,
+        version: '2.2',
+        fileSize: '20KB',
+        features: ['Encryption', 'Obfuscation', 'License system', 'Anti-tamper'],
+        uploadDate: '2024-01-08',
+        status: 'available'
+    },
+    {
+        id: 'ai-assistant',
+        name: 'AI Assistant Beta',
+        description: 'Assistente de IA para desenvolvimento Lua',
+        category: 'automation',
+        price: '0.012',
+        currency: 'BTC',
+        rating: 4.4,
+        downloads: 45,
+        version: '0.9',
+        fileSize: '50KB',
+        features: ['Code suggestions', 'Error detection', 'Auto-complete', 'Learning system'],
+        uploadDate: '2024-01-18',
+        status: 'available'
     }
 ];
 
-// Configurações de segurança
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || crypto.randomBytes(32).toString('hex');
-
-// Configuração CORS segura
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : 
-    ['https://luaworks.dev', 'https://www.luaworks.dev'];
-
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Permitir requisições sem origem (mobile apps, curl, etc) apenas em desenvolvimento
-        if (!origin && process.env.NODE_ENV === 'development') {
-            return callback(null, true);
-        }
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    optionsSuccessStatus: 200
-};
-
-// Rate limiting para rotas sensíveis
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10, // limite de 10 requisições por IP
-    message: 'Too many login attempts, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const purchaseLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutos
-    max: 20, // limite de 20 requisições por IP
-    message: 'Too many purchase attempts, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-// Função segura para comparação de strings (evita timing attacks)
-function secureCompare(a, b) {
-    const aBuf = Buffer.from(a);
-    const bBuf = Buffer.from(b);
-    return crypto.timingSafeEqual(aBuf, bBuf);
-}
-
-// Sanitização de dados para logs
-function sanitizeForLog(data) {
-    if (typeof data !== 'object' || data === null) {
-        return typeof data === 'string' && data.length > 50 ? data.substring(0, 50) + '...' : data;
-    }
-    
-    const sanitized = { ...data };
-    const sensitiveFields = ['password', 'token', 'authorization', 'creditCard', 'cvv', 'ssn', 'email', 'address'];
-    
-    for (const key in sanitized) {
-        if (sensitiveFields.includes(key.toLowerCase())) {
-            sanitized[key] = '[REDACTED]';
-        } else if (typeof sanitized[key] === 'object') {
-            sanitized[key] = sanitizeForLog(sanitized[key]);
-        } else if (typeof sanitized[key] === 'string' && sanitized[key].length > 100) {
-            sanitized[key] = sanitized[key].substring(0, 100) + '...';
-        }
-    }
-    
-    return sanitized;
-}
-
-// Middleware de tratamento de erros global
-function errorHandler(err, req, res, next) {
-    const statusCode = err.statusCode || 500;
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    const errorResponse = {
-        error: isProduction ? 'Internal Server Error' : err.message,
-        timestamp: new Date().toISOString(),
-        path: req.path
-    };
-    
-    // Log seguro do erro
-    console.error('Error:', {
-        message: err.message,
-        stack: isProduction ? undefined : err.stack,
-        method: req.method,
-        path: req.path,
-        ip: req.ip,
-        userAgent: req.get('user-agent'),
-        body: sanitizeForLog(req.body),
-        query: sanitizeForLog(req.query),
-        params: sanitizeForLog(req.params)
-    });
-    
-    if (!isProduction) {
-        errorResponse.stack = err.stack;
-    }
-    
-    res.status(statusCode).json(errorResponse);
-}
-
-// Middleware de validação de entrada
-function validateInput(req, res, next) {
-    // Proteção contra NoSQL injection
-    const hasDollar = JSON.stringify(req.body).includes('$');
-    const hasDot = JSON.stringify(req.body).includes('.');
-    
-    if ((hasDollar || hasDot) && 
-        (req.path.includes('/api/') && req.method === 'POST')) {
-        return res.status(400).json({ error: 'Invalid input data' });
-    }
-    
-    // Limitar tamanho do body
-    const contentLength = parseInt(req.get('content-length') || '0');
-    if (contentLength > 1e6) { // 1MB max
-        return res.status(413).json({ error: 'Payload too large' });
-    }
-    
-    next();
-}
+const sampleUpcoming = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Lua Works - Inicializando sistema...');
@@ -180,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateStatsDisplay();
         console.log('Sistema inicializado com sucesso!');
     } catch (error) {
-        console.error('Erro na inicialização:', error.message);
+        console.error('Erro na inicialização:', error);
         showError('Erro ao carregar o sistema. Recarregue a página.');
     }
 });
@@ -211,29 +160,15 @@ async function loadUserData() {
     if (!token || !userData) return;
     
     try {
-        const encryptedData = localStorage.getItem('encrypted_user_data');
-        if (encryptedData) {
-            const decrypted = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
-            currentUser = JSON.parse(decrypted);
-        } else {
-            currentUser = JSON.parse(userData);
-        }
-        
-        const encryptedPurchases = localStorage.getItem('encrypted_purchases');
-        if (encryptedPurchases) {
-            const decrypted = CryptoJS.AES.decrypt(encryptedPurchases, ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
-            userPurchases = JSON.parse(decrypted || '[]');
-        } else {
-            userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
-        }
-        
+        currentUser = JSON.parse(userData);
+        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
         if (currentUser.email === 'XXXXXXXXXXXXXXX' || currentUser.username === 'XXXXXX' || currentUser.isAdmin) {
             currentUser.isAdmin = true;
         }
         console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
         console.log(`Compras carregadas: ${userPurchases.length}`);
     } catch (error) {
-        console.error('Erro ao carregar dados do usuário:', error.message);
+        console.error('Erro ao carregar dados do usuário:', error);
         logoutUser();
     }
 }
@@ -245,7 +180,7 @@ function loadCart() {
             cart = JSON.parse(savedCart);
             updateCartCount();
         } catch (error) {
-            console.error('Erro ao carregar carrinho:', error.message);
+            console.error('Erro ao carregar carrinho:', error);
             cart = [];
         }
     }
@@ -290,7 +225,7 @@ function getDefaultCurrencies() {
             symbol: 'BTC', 
             icon: 'fab fa-bitcoin',
             color: '#f7931a',
-            address: process.env.BTC_ADDRESS || 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
             network: 'Bitcoin Mainnet'
         },
         { 
@@ -299,7 +234,7 @@ function getDefaultCurrencies() {
             symbol: 'ETH', 
             icon: 'fab fa-ethereum',
             color: '#627eea',
-            address: process.env.ETH_ADDRESS || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+            address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
             network: 'Ethereum Mainnet'
         },
         { 
@@ -308,7 +243,7 @@ function getDefaultCurrencies() {
             symbol: 'USDT', 
             icon: 'fas fa-coins',
             color: '#26a17b',
-            address: process.env.USDT_ADDRESS || 'TNSgRrJjU9vCh3qLgJoj5gLk7Wb9Xr1R6F',
+            address: 'TNSgRrJjU9vCh3qLgJoj5gLk7Wb9Xr1R6F',
             network: 'TRC20'
         }
     ];
@@ -739,7 +674,7 @@ async function confirmPayment() {
             await processSinglePurchase();
         }
     } catch (error) {
-        console.error('Erro no pagamento:', error.message);
+        console.error('Erro no pagamento:', error);
         showPaymentError(error);
     } finally {
         btn.innerHTML = originalText;
@@ -771,8 +706,7 @@ async function processSinglePurchase() {
         total: parseFloat(selectedProduct.price) * 1.02
     };
     userPurchases.push(newPurchase);
-    const encrypted = CryptoJS.AES.encrypt(JSON.stringify(userPurchases), ENCRYPTION_KEY).toString();
-    localStorage.setItem('encrypted_purchases', encrypted);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
     showPaymentSuccess({
         order: newPurchase
     });
@@ -825,8 +759,7 @@ async function processCartCheckout() {
         };
         userPurchases.push(productPurchase);
     });
-    const encrypted = CryptoJS.AES.encrypt(JSON.stringify(userPurchases), ENCRYPTION_KEY).toString();
-    localStorage.setItem('encrypted_purchases', encrypted);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
     cart = [];
     saveCart();
     updateCartModal();
@@ -897,7 +830,7 @@ async function downloadProduct(productId) {
                 throw new Error('Download não disponível');
             }
         } catch (fallbackError) {
-            console.error('Erro no fallback:', fallbackError.message);
+            console.error('Erro no fallback:', fallbackError);
         }
     }
 }
@@ -934,7 +867,7 @@ async function downloadFromServer(productId, token) {
         registerDownload(filename, productId);
         showMessage('Download iniciado com sucesso!', 'success');
     } catch (error) {
-        console.error('Erro no download do servidor:', error.message);
+        console.error('Erro no download do servidor:', error);
         throw error;
     }
 }
@@ -963,18 +896,15 @@ async function loginUser(email, password) {
             throw new Error(data.error || 'Erro no login');
         }
         localStorage.setItem('auth_token', data.token);
-        const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(data.user), ENCRYPTION_KEY).toString();
-        localStorage.setItem('encrypted_user_data', encryptedUser);
         localStorage.setItem('user_data', JSON.stringify(data.user));
-        const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify(data.user.orders || []), ENCRYPTION_KEY).toString();
-        localStorage.setItem('encrypted_purchases', encryptedOrders);
+        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
         currentUser = data.user;
         userPurchases = data.user.orders || [];
         updateUI();
         showMessage('Login realizado com sucesso!', 'success');
         return { success: true, user: data.user };
     } catch (error) {
-        console.error('Erro no login:', error.message);
+        console.error('Erro no login:', error);
         showError(error.message);
         return { success: false, error: error.message };
     }
@@ -994,18 +924,15 @@ async function registerUser(username, email, password) {
             throw new Error(data.error || 'Erro no registro');
         }
         localStorage.setItem('auth_token', data.token);
-        const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(data.user), ENCRYPTION_KEY).toString();
-        localStorage.setItem('encrypted_user_data', encryptedUser);
         localStorage.setItem('user_data', JSON.stringify(data.user));
-        const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify([]), ENCRYPTION_KEY).toString();
-        localStorage.setItem('encrypted_purchases', encryptedOrders);
+        localStorage.setItem('user_purchases', '[]');
         currentUser = data.user;
         userPurchases = [];
         updateUI();
         showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
         return { success: true, user: data.user };
     } catch (error) {
-        console.error('Erro no registro:', error.message);
+        console.error('Erro no registro:', error);
         showError(error.message);
         return { success: false, error: error.message };
     }
@@ -1014,8 +941,6 @@ async function registerUser(username, email, password) {
 function logoutUser() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
-    localStorage.removeItem('encrypted_user_data');
-    localStorage.removeItem('encrypted_purchases');
     localStorage.removeItem('user_purchases');
     currentUser = null;
     userPurchases = [];
@@ -1066,7 +991,7 @@ function setupEventListeners() {
                 }, 2000);
             }
         }).catch(err => {
-            console.error('Erro ao copiar:', err.message);
+            console.error('Erro ao copiar:', err);
             const textArea = document.createElement('textarea');
             textArea.value = address;
             document.body.appendChild(textArea);
@@ -1945,11 +1870,8 @@ setTimeout(() => {
             };
             const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
             localStorage.setItem('auth_token', adminToken);
-            const encryptedUser = CryptoJS.AES.encrypt(JSON.stringify(adminUser), ENCRYPTION_KEY).toString();
-            localStorage.setItem('encrypted_user_data', encryptedUser);
             localStorage.setItem('user_data', JSON.stringify(adminUser));
-            const encryptedOrders = CryptoJS.AES.encrypt(JSON.stringify([]), ENCRYPTION_KEY).toString();
-            localStorage.setItem('encrypted_purchases', encryptedOrders);
+            localStorage.setItem('user_purchases', '[]');
             localStorage.setItem('lua_works_admin_created', 'true');
         }
     }

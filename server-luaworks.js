@@ -7,37 +7,11 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const multer = require('multer');
 const crypto = require('crypto');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
-const hpp = require('hpp');
-const validator = require('validator');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Função para gerar strings aleatórias usando crypto nativo
-function generateRandomString(length, type = 'base64') {
-    if (type === 'alphanumeric') {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    } else if (type === 'base64') {
-        return crypto.randomBytes(Math.ceil(length * 3 / 4))
-            .toString('base64')
-            .slice(0, length)
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_');
-    } else {
-        return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
-    }
-}
-
-const SECRET_KEY = process.env.JWT_SECRET || generateRandomString(128, 'base64');
+const SECRET_KEY = process.env.JWT_SECRET || '66e2860d1de0f99a235edff69876c8db6db1e946997bf9196905d83ba6ae518fe8ddfc2646b2164848d36146275e586eb018a211165bf3f079baa1a6b799fd04';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'FisherMAN1909';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'N10Sz!@,;>';
@@ -46,29 +20,6 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'laila.cypher19@proton.me';
 const DB_PATH = path.join(__dirname, 'database');
 const UPLOADS_PATH = path.join(__dirname, 'uploads');
 const PUBLIC_PATH = path.join(__dirname, 'public');
-const WHITELISTED_IPS = (process.env.WHITELISTED_IPS || '').split(',').filter(ip => ip.trim());
-const BLACKLISTED_IPS = (process.env.BLACKLISTED_IPS || '').split(',').filter(ip => ip.trim());
-
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Muitas requisições deste IP, tente novamente mais tarde.',
-    skipSuccessfulRequests: false
-});
-
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 5,
-    message: 'Muitas tentativas de login, tente novamente em uma hora.',
-    skipSuccessfulRequests: false
-});
-
-const adminLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 30,
-    message: 'Muitas requisições administrativas, tente novamente mais tarde.',
-    skipSuccessfulRequests: false
-});
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -76,11 +27,10 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const timestamp = Date.now();
-        const random = crypto.randomBytes(8).toString('hex');
+        const random = Math.random().toString(36).substring(2, 8);
         const originalName = path.parse(file.originalname).name;
         const extension = path.extname(file.originalname);
-        const sanitizedName = originalName.replace(/[^a-zA-Z0-9]/g, '_');
-        const uniqueName = `${sanitizedName}_${timestamp}_${random}${extension}`;
+        const uniqueName = `${originalName}_${timestamp}_${random}${extension}`;
         cb(null, uniqueName);
     }
 });
@@ -99,127 +49,16 @@ const upload = multer({
     }
 });
 
-function validateInput(input, type) {
-    if (!input) return false;
-    
-    switch(type) {
-        case 'email':
-            return validator.isEmail(input) && validator.isLength(input, { max: 255 });
-        case 'username':
-            return validator.isAlphanumeric(input.replace(/[_-]/g, '')) && 
-                   validator.isLength(input, { min: 3, max: 20 });
-        case 'password':
-            return validator.isLength(input, { min: 8 }) &&
-                   /[A-Z]/.test(input) &&
-                   /[a-z]/.test(input) &&
-                   /[0-9]/.test(input) &&
-                   /[^A-Za-z0-9]/.test(input);
-        case 'text':
-            return validator.isLength(input, { max: 1000 }) &&
-                   !/<script|javascript:|on\w+\s*=/.test(input.toLowerCase());
-        case 'filename':
-            return validator.isLength(input, { max: 255 }) &&
-                   !/[<>:"/\\|?*]/.test(input) &&
-                   !input.includes('..');
-        default:
-            return validator.isLength(input, { max: 500 });
-    }
-}
-
-function ipSecurityMiddleware(req, res, next) {
-    const clientIp = req.ip || req.connection.remoteAddress;
-    
-    if (BLACKLISTED_IPS.includes(clientIp)) {
-        return res.status(403).json({ error: 'Acesso bloqueado' });
-    }
-    
-    if (WHITELISTED_IPS.length > 0 && !WHITELISTED_IPS.includes(clientIp)) {
-        return res.status(403).json({ error: 'Acesso não autorizado' });
-    }
-    
-    next();
-}
-
-function sanitizeData(data) {
-    if (typeof data === 'string') {
-        return validator.escape(data.replace(/<[^>]*>?/gm, ''));
-    }
-    if (Array.isArray(data)) {
-        return data.map(item => sanitizeData(item));
-    }
-    if (typeof data === 'object' && data !== null) {
-        const sanitized = {};
-        for (const key in data) {
-            sanitized[key] = sanitizeData(data[key]);
-        }
-        return sanitized;
-    }
-    return data;
-}
-
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'"],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"]
-        }
-    },
-    hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-    },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
-}));
-
-app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
-
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(mongoSanitize());
-app.use(hpp());
-app.use(ipSecurityMiddleware);
-
-app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
-app.use('/api/admin/', adminLimiter);
-
-app.use(express.static(PUBLIC_PATH, {
-    setHeaders: (res, path) => {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Frame-Options', 'DENY');
-        res.setHeader('X-XSS-Protection', '1; mode=block');
-    }
-}));
-app.use('/uploads', express.static(UPLOADS_PATH, {
-    setHeaders: (res, path) => {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Content-Disposition', 'attachment');
-    }
-}));
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(PUBLIC_PATH));
+app.use('/uploads', express.static(UPLOADS_PATH));
 
 async function readDatabase(file) {
     try {
-        const filePath = path.join(DB_PATH, file);
-        if (!filePath.startsWith(DB_PATH)) {
-            throw new Error('Caminho inválido');
-        }
-        
-        const data = await fs.readFile(filePath, 'utf8');
-        const parsed = JSON.parse(data);
-        return sanitizeData(parsed);
+        const data = await fs.readFile(path.join(DB_PATH, file), 'utf8');
+        return JSON.parse(data);
     } catch (error) {
         if (file === 'users.json') return { users: [] };
         if (file === 'products.json') return [];
@@ -228,19 +67,12 @@ async function readDatabase(file) {
         if (file === 'downloads.json') return { downloads: [] };
         if (file === 'reviews.json') return { reviews: [] };
         if (file === 'logs.json') return { logs: [] };
-        if (file === 'security.json') return { failedAttempts: [], blockedIPs: [] };
         return [];
     }
 }
 
 async function writeDatabase(file, data) {
-    const filePath = path.join(DB_PATH, file);
-    if (!filePath.startsWith(DB_PATH)) {
-        throw new Error('Caminho inválido');
-    }
-    
-    const sanitizedData = sanitizeData(data);
-    await fs.writeFile(filePath, JSON.stringify(sanitizedData, null, 2));
+    await fs.writeFile(path.join(DB_PATH, file), JSON.stringify(data, null, 2));
 }
 
 async function generateRealStats() {
@@ -264,49 +96,6 @@ async function generateRealStats() {
     };
 }
 
-async function checkFailedAttempts(ip, identifier) {
-    try {
-        const securityDb = await readDatabase('security.json');
-        const now = Date.now();
-        const oneHourAgo = now - (60 * 60 * 1000);
-        
-        securityDb.failedAttempts = securityDb.failedAttempts.filter(attempt => 
-            attempt.timestamp > oneHourAgo
-        );
-        
-        const ipAttempts = securityDb.failedAttempts.filter(a => a.ip === ip);
-        const identifierAttempts = securityDb.failedAttempts.filter(a => a.identifier === identifier);
-        
-        if (ipAttempts.length >= 10 || identifierAttempts.length >= 5) {
-            securityDb.blockedIPs.push({
-                ip: ip,
-                blockedAt: now,
-                reason: 'Muitas tentativas falhas'
-            });
-            await writeDatabase('security.json', securityDb);
-            return true;
-        }
-        
-        return false;
-    } catch (error) {
-        return false;
-    }
-}
-
-async function recordFailedAttempt(ip, identifier) {
-    try {
-        const securityDb = await readDatabase('security.json');
-        securityDb.failedAttempts.push({
-            ip: ip,
-            identifier: identifier,
-            timestamp: Date.now()
-        });
-        await writeDatabase('security.json', securityDb);
-    } catch (error) {
-        // Ignorar erro
-    }
-}
-
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -319,11 +108,6 @@ function authenticateToken(req, res, next) {
         if (err) {
             return res.status(403).json({ error: 'Token inválido ou expirado' });
         }
-        
-        if (!user || !user.id || !user.username) {
-            return res.status(403).json({ error: 'Token inválido' });
-        }
-        
         req.user = user;
         next();
     });
@@ -333,21 +117,16 @@ async function logActivity(event, details, userId = null, ip = '127.0.0.1') {
     try {
         const logsDb = await readDatabase('logs.json');
         logsDb.logs.push({
-            id: `LOG-${Date.now()}-${generateRandomString(8, 'alphanumeric')}`,
+            id: `LOG-${Date.now()}`,
             event,
-            details: validator.escape(details.substring(0, 1000)),
+            details,
             userId,
             timestamp: new Date().toISOString(),
             ip: ip
         });
-        
-        if (logsDb.logs.length > 10000) {
-            logsDb.logs = logsDb.logs.slice(-5000);
-        }
-        
         await writeDatabase('logs.json', logsDb);
     } catch (error) {
-        // Ignorar erro
+        console.error('Erro ao logar atividade:', error);
     }
 }
 
@@ -369,7 +148,7 @@ async function syncAdminUser() {
             const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
             
             const adminUser = {
-                id: 'admin-' + Date.now().toString() + '-' + generateRandomString(8, 'alphanumeric'),
+                id: 'admin-' + Date.now().toString(),
                 username: ADMIN_USERNAME,
                 email: ADMIN_EMAIL,
                 password: hashedPassword,
@@ -399,7 +178,7 @@ async function syncAdminUser() {
                 isAdmin: true,
                 isVerified: true,
                 twoFactorEnabled: false,
-                apiKey: 'lw_' + crypto.randomBytes(32).toString('hex'),
+                apiKey: 'lw_' + crypto.randomBytes(16).toString('hex'),
                 lastUpdate: new Date().toISOString()
             };
             
@@ -425,6 +204,7 @@ async function syncAdminUser() {
         return true;
         
     } catch (error) {
+        console.error('Erro ao sincronizar admin:', error);
         return false;
     }
 }
@@ -442,9 +222,9 @@ app.get('/api/crypto-prices', async (req, res) => {
             ADA: 0.45
         };
         
-        res.setHeader('Cache-Control', 'public, max-age=60');
         res.json(prices);
     } catch (error) {
+        console.error('Erro ao obter preços de criptomoedas:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -465,22 +245,8 @@ app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), asy
             return res.status(400).json({ error: 'Nenhum arquivo enviado' });
         }
 
-        const fileExtension = path.extname(req.file.originalname).toLowerCase();
-        const allowedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.js', '.json', '.py', '.xml', '.html', '.css', '.md', '.lua'];
-        
-        if (!allowedExtensions.includes(fileExtension)) {
-            await fs.unlink(req.file.path).catch(() => {});
-            return res.status(400).json({ error: 'Tipo de arquivo não permitido' });
-        }
-
-        const maxSize = 100 * 1024 * 1024;
-        if (req.file.size > maxSize) {
-            await fs.unlink(req.file.path).catch(() => {});
-            return res.status(400).json({ error: 'Arquivo muito grande' });
-        }
-
         const fileInfo = {
-            fileName: validator.escape(req.file.originalname.substring(0, 255)),
+            fileName: req.file.originalname,
             filePath: `/uploads/${req.file.filename}`,
             fileSize: req.file.size,
             mimeType: req.file.mimetype,
@@ -500,12 +266,15 @@ app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), asy
         });
 
     } catch (error) {
+        console.error('Erro no upload:', error);
+        
         if (req.file) {
             await fs.unlink(req.file.path).catch(() => {});
         }
         
         res.status(500).json({ 
-            error: 'Erro interno do servidor no upload'
+            error: 'Erro interno do servidor no upload',
+            details: error.message 
         });
     }
 });
@@ -513,10 +282,6 @@ app.post('/api/admin/upload-file', authenticateToken, upload.single('file'), asy
 app.get('/api/download/:productId', async (req, res) => {
     try {
         const { productId } = req.params;
-        
-        if (!validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'ID do produto inválido' });
-        }
         
         const productsDb = await readDatabase('products.json');
         const product = productsDb.find(p => p.id === productId);
@@ -544,7 +309,7 @@ app.get('/api/download/:productId', async (req, res) => {
             productName: product.name,
             downloadedAt: new Date().toISOString(),
             ip: req.ip,
-            userAgent: req.get('User-Agent') ? req.get('User-Agent').substring(0, 500) : 'Desconhecido'
+            userAgent: req.get('User-Agent')
         });
         await writeDatabase('downloads.json', downloadsDb);
 
@@ -554,11 +319,10 @@ app.get('/api/download/:productId', async (req, res) => {
         await logActivity('PRODUCT_DOWNLOADED', `Produto baixado: ${product.name}`, null, req.ip);
 
         const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
-        res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.download(filePath, originalFileName);
 
     } catch (error) {
+        console.error('Erro no download:', error);
         res.status(500).json({ error: 'Erro interno do servidor no download' });
     }
 });
@@ -566,10 +330,6 @@ app.get('/api/download/:productId', async (req, res) => {
 app.get('/api/download/:productId/authenticated', authenticateToken, async (req, res) => {
     try {
         const { productId } = req.params;
-        
-        if (!validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'ID do produto inválido' });
-        }
         
         const productsDb = await readDatabase('products.json');
         const product = productsDb.find(p => p.id === productId);
@@ -622,11 +382,10 @@ app.get('/api/download/:productId/authenticated', authenticateToken, async (req,
         await logActivity('PRODUCT_DOWNLOADED', `Produto baixado (autenticado): ${product.name}`, user.id, req.ip);
 
         const originalFileName = product.fileName || product.name.replace(/[^a-z0-9]/gi, '_') + path.extname(product.filePath);
-        res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.download(filePath, originalFileName);
 
     } catch (error) {
+        console.error('Erro no download autenticado:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -638,7 +397,6 @@ app.get('/api/verify-token', authenticateToken, (req, res) => {
 app.get('/api/products', async (req, res) => {
     try {
         const products = await readDatabase('products.json');
-        res.setHeader('Cache-Control', 'public, max-age=300');
         res.json(products);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -647,20 +405,13 @@ app.get('/api/products', async (req, res) => {
 
 app.get('/api/products/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
-        
         const products = await readDatabase('products.json');
-        const product = products.find(p => p.id === id);
+        const product = products.find(p => p.id === req.params.id);
         
         if (!product) {
             return res.status(404).json({ error: 'Produto não encontrado' });
         }
         
-        res.setHeader('Cache-Control', 'public, max-age=300');
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -671,7 +422,6 @@ app.get('/api/products/upcoming', async (req, res) => {
     try {
         const products = await readDatabase('products.json');
         const upcoming = products.filter(p => p.status === 'upcoming');
-        res.setHeader('Cache-Control', 'public, max-age=300');
         res.json(upcoming);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -681,7 +431,6 @@ app.get('/api/products/upcoming', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
     try {
         const stats = await readDatabase('stats.json');
-        res.setHeader('Cache-Control', 'public, max-age=60');
         res.json(stats);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -745,17 +494,11 @@ app.get('/api/currencies', (req, res) => {
             network: 'Litecoin Mainnet'
         }
     ];
-    res.setHeader('Cache-Control', 'public, max-age=3600');
     res.json(currencies);
 });
 
 app.get('/api/payment-info/:currency', (req, res) => {
     const { currency } = req.params;
-    
-    if (!validateInput(currency, 'text')) {
-        return res.status(400).json({ error: 'Moeda inválida' });
-    }
-    
     const currencyInfo = {
         BTC: {
             name: 'Bitcoin',
@@ -781,7 +524,6 @@ app.get('/api/payment-info/:currency', (req, res) => {
     };
     
     const info = currencyInfo[currency] || currencyInfo.BTC;
-    res.setHeader('Cache-Control', 'public, max-age=3600');
     res.json(info);
 });
 
@@ -793,12 +535,8 @@ app.post('/api/calculate-crypto-price', async (req, res) => {
             return res.status(400).json({ error: 'Dados incompletos' });
         }
         
-        if (!validateInput(cryptoCurrency, 'text')) {
-            return res.status(400).json({ error: 'Moeda inválida' });
-        }
-        
         const usd = parseFloat(usdAmount);
-        if (isNaN(usd) || usd <= 0 || usd > 1000000) {
+        if (isNaN(usd) || usd <= 0) {
             return res.status(400).json({ error: 'Valor em USD inválido' });
         }
         
@@ -832,6 +570,7 @@ app.post('/api/calculate-crypto-price', async (req, res) => {
         });
         
     } catch (error) {
+        console.error('Erro ao calcular preço:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -843,35 +582,22 @@ app.post('/api/admin/login', async (req, res) => {
         if (!username || !password) {
             return res.status(400).json({ error: 'Username e password são obrigatórios' });
         }
-        
-        if (!validateInput(username, 'username') || !validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
-
-        const isBlocked = await checkFailedAttempts(req.ip, username);
-        if (isBlocked) {
-            await logActivity('LOGIN_BLOCKED', `Tentativa de login bloqueada para IP: ${req.ip}`, null, req.ip);
-            return res.status(403).json({ error: 'Acesso temporariamente bloqueado' });
-        }
 
         const db = await readDatabase('users.json');
         const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
         
         if (!user) {
-            await recordFailedAttempt(req.ip, username);
             await logActivity('LOGIN_FAILED', `Tentativa de login com usuário inexistente: ${username}`, null, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            await recordFailedAttempt(req.ip, username);
             await logActivity('LOGIN_FAILED', `Senha incorreta para usuário: ${username}`, user.id, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         if (!user.isAdmin) {
-            await recordFailedAttempt(req.ip, username);
             await logActivity('LOGIN_FAILED', `Usuário não-admin tentou acessar admin: ${username}`, user.id, req.ip);
             return res.status(403).json({ error: 'Acesso não autorizado. Apenas administradores.' });
         }
@@ -888,13 +614,11 @@ app.post('/api/admin/login', async (req, res) => {
                 isAdmin: user.isAdmin 
             },
             SECRET_KEY,
-            { expiresIn: '8h' }
+            { expiresIn: '30d' }
         );
 
         await logActivity('LOGIN_SUCCESS', `Admin ${username} fez login`, user.id, req.ip);
 
-        res.setHeader('Authorization', `Bearer ${token}`);
-        
         res.json({
             message: 'Login realizado com sucesso!',
             user: {
@@ -910,8 +634,7 @@ app.post('/api/admin/login', async (req, res) => {
                 apiKey: user.apiKey,
                 createdAt: user.createdAt
             },
-            token,
-            expiresIn: '8h'
+            token
         });
 
     } catch (error) {
@@ -1004,38 +727,34 @@ app.post('/api/admin/products', authenticateToken, async (req, res) => {
         if (!productData.name || !productData.description || !productData.price) {
             return res.status(400).json({ error: 'Dados do produto incompletos' });
         }
-        
-        if (!validateInput(productData.name, 'text') || !validateInput(productData.description, 'text')) {
-            return res.status(400).json({ error: 'Dados do produto inválidos' });
-        }
 
         const productsDb = await readDatabase('products.json');
         
         const newProduct = {
-            id: `prod-${Date.now()}-${generateRandomString(12, 'alphanumeric')}`,
-            name: validator.escape(productData.name.substring(0, 255)),
-            description: validator.escape(productData.description.substring(0, 500)),
-            longDescription: productData.longDescription ? validator.escape(productData.longDescription.substring(0, 5000)) : '',
-            price: parseFloat(productData.price),
-            originalPrice: parseFloat(productData.originalPrice || productData.price),
+            id: `prod-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: productData.name,
+            description: productData.description,
+            longDescription: productData.longDescription || '',
+            price: productData.price,
+            originalPrice: productData.originalPrice || productData.price,
             currency: productData.currency || 'USD',
-            category: validateInput(productData.category, 'text') ? productData.category : 'automation',
-            features: productData.features ? (Array.isArray(productData.features) ? productData.features.map(f => validator.escape(f.substring(0, 100))) : productData.features.split(',').map(f => validator.escape(f.trim().substring(0, 100)))) : [],
+            category: productData.category || 'automation',
+            features: productData.features ? (Array.isArray(productData.features) ? productData.features : productData.features.split(',').map(f => f.trim())) : [],
             status: productData.isUpcoming ? 'upcoming' : 'active',
-            featured: !!productData.featured,
+            featured: productData.featured || false,
             uploadDate: new Date().toISOString(),
             lastUpdate: new Date().toISOString(),
-            version: validateInput(productData.version, 'text') ? productData.version : '1.0.0',
+            version: productData.version || '1.0.0',
             downloads: 0,
             rating: 0,
-            tags: productData.tags ? (Array.isArray(productData.tags) ? productData.tags.map(t => validator.escape(t.substring(0, 50))) : productData.tags.split(',').map(t => validator.escape(t.trim().substring(0, 50)))) : [],
+            tags: productData.tags ? (Array.isArray(productData.tags) ? productData.tags : productData.tags.split(',').map(t => t.trim())) : [],
             systemRequirements: productData.systemRequirements || {},
-            includes: productData.includes ? (Array.isArray(productData.includes) ? productData.includes.map(i => validator.escape(i.substring(0, 100))) : productData.includes.split(',').map(i => validator.escape(i.trim().substring(0, 100)))) : [],
-            fileSize: validateInput(productData.fileSize, 'text') ? productData.fileSize : '0 MB',
-            filePath: validateInput(productData.fileUrl, 'text') ? productData.fileUrl : '',
-            fileName: validateInput(productData.fileName, 'filename') ? productData.fileName : '',
-            developer: validateInput(productData.developer, 'text') ? productData.developer : 'Lua Works Team',
-            changelog: Array.isArray(productData.changelog) ? productData.changelog.map(c => validator.escape(c.substring(0, 500))) : []
+            includes: productData.includes ? (Array.isArray(productData.includes) ? productData.includes : productData.includes.split(',').map(i => i.trim())) : [],
+            fileSize: productData.fileSize || '0 MB',
+            filePath: productData.fileUrl || '',
+            fileName: productData.fileName || '',
+            developer: productData.developer || 'Lua Works Team',
+            changelog: productData.changelog || []
         };
 
         productsDb.push(newProduct);
@@ -1049,6 +768,7 @@ app.post('/api/admin/products', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Erro ao criar produto:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -1061,15 +781,9 @@ app.put('/api/admin/products/:id', authenticateToken, async (req, res) => {
         if (!user || !user.isAdmin) {
             return res.status(403).json({ error: 'Acesso negado' });
         }
-        
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
 
         const productsDb = await readDatabase('products.json');
-        const productIndex = productsDb.findIndex(p => p.id === id);
+        const productIndex = productsDb.findIndex(p => p.id === req.params.id);
         
         if (productIndex === -1) {
             return res.status(404).json({ error: 'Produto não encontrado' });
@@ -1092,6 +806,7 @@ app.put('/api/admin/products/:id', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Erro ao atualizar produto:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -1104,15 +819,9 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
         if (!user || !user.isAdmin) {
             return res.status(403).json({ error: 'Acesso negado' });
         }
-        
-        const { id } = req.params;
-        
-        if (!validateInput(id, 'text')) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
 
         const productsDb = await readDatabase('products.json');
-        const productIndex = productsDb.findIndex(p => p.id === id);
+        const productIndex = productsDb.findIndex(p => p.id === req.params.id);
         
         if (productIndex === -1) {
             return res.status(404).json({ error: 'Produto não encontrado' });
@@ -1126,7 +835,7 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
                 await fs.unlink(filePath);
                 await logActivity('FILE_DELETED', `Arquivo removido: ${deletedProduct.filePath}`, user.id, req.ip);
             } catch (error) {
-                // Ignorar erro se arquivo não existir
+                console.warn(`Arquivo não encontrado para remoção: ${filePath}`);
             }
         }
 
@@ -1140,6 +849,7 @@ app.delete('/api/admin/products/:id', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Erro ao excluir produto:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
@@ -1221,17 +931,17 @@ app.post('/api/auth/register', async (req, res) => {
         if (!username || !email || !password) {
             return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
         }
-        
-        if (!validateInput(username, 'username')) {
-            return res.status(400).json({ error: 'Nome de usuário inválido' });
+
+        if (username.length < 3 || username.length > 20) {
+            return res.status(400).json({ error: 'Nome de usuário deve ter entre 3 e 20 caracteres' });
         }
-        
-        if (!validateInput(email, 'email')) {
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).json({ error: 'Email inválido' });
         }
-        
-        if (!validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Senha inválida. Mínimo 8 caracteres com maiúsculas, minúsculas, números e símbolos.' });
+
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
         }
 
         const db = await readDatabase('users.json');
@@ -1247,9 +957,9 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 12);
         
         const newUser = {
-            id: Date.now().toString() + '-' + generateRandomString(8, 'alphanumeric'),
-            username: validator.escape(username),
-            email: validator.normalizeEmail(email),
+            id: Date.now().toString(),
+            username,
+            email,
             password: hashedPassword,
             profile: {
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=00ff88&color=000&bold=true&size=256`,
@@ -1277,7 +987,7 @@ app.post('/api/auth/register', async (req, res) => {
             isAdmin: false,
             isVerified: false,
             twoFactorEnabled: false,
-            apiKey: 'lw_' + crypto.randomBytes(32).toString('hex')
+            apiKey: 'lw_' + crypto.randomBytes(16).toString('hex')
         };
 
         db.users.push(newUser);
@@ -1328,29 +1038,17 @@ app.post('/api/auth/login', async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ error: 'Email e senha são obrigatórios' });
         }
-        
-        if (!validateInput(email, 'email') || !validateInput(password, 'password')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
-
-        const isBlocked = await checkFailedAttempts(req.ip, email);
-        if (isBlocked) {
-            await logActivity('LOGIN_BLOCKED', `Tentativa de login bloqueada para IP: ${req.ip}`, null, req.ip);
-            return res.status(403).json({ error: 'Acesso temporariamente bloqueado' });
-        }
 
         const db = await readDatabase('users.json');
         const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
         
         if (!user) {
-            await recordFailedAttempt(req.ip, email);
             await logActivity('LOGIN_FAILED', `Tentativa de login com email inexistente: ${email}`, null, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            await recordFailedAttempt(req.ip, email);
             await logActivity('LOGIN_FAILED', `Senha incorreta para email: ${email}`, user.id, req.ip);
             return res.status(401).json({ error: 'Credenciais inválidas' });
         }
@@ -1372,8 +1070,6 @@ app.post('/api/auth/login', async (req, res) => {
 
         await logActivity('LOGIN_SUCCESS', `Usuário fez login: ${user.username}`, user.id, req.ip);
 
-        res.setHeader('Authorization', `Bearer ${token}`);
-        
         res.json({
             message: 'Login realizado com sucesso!',
             user: {
@@ -1541,7 +1237,6 @@ app.get('/api/public/products', async (req, res) => {
             tags: p.tags || []
         }));
         
-        res.setHeader('Cache-Control', 'public, max-age=300');
         res.json(publicProducts);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -1559,7 +1254,6 @@ app.get('/api/public/stats', async (req, res) => {
             averageRating: stats.averageRating
         };
         
-        res.setHeader('Cache-Control', 'public, max-age=300');
         res.json(publicStats);
     } catch (error) {
         res.status(500).json({ error: 'Erro interno do servidor' });
@@ -1573,13 +1267,9 @@ app.post('/api/payments/verify', async (req, res) => {
         if (!txHash || !currency || !amount || !productId) {
             return res.status(400).json({ error: 'Dados incompletos' });
         }
-        
-        if (!validateInput(txHash, 'text') || !validateInput(currency, 'text') || !validateInput(productId, 'text')) {
-            return res.status(400).json({ error: 'Dados inválidos' });
-        }
 
         await logActivity('PAYMENT_VERIFICATION_ATTEMPT', 
-            `Tentativa de verificação: ${currency} ${amount} - TX: ${txHash.substring(0, 20)}...`, 
+            `Tentativa de verificação: ${currency} ${amount} - TX: ${txHash}`, 
             req.user?.id || null,
             req.ip
         );
@@ -1609,18 +1299,15 @@ app.get('/api/admin/backup', authenticateToken, async (req, res) => {
         const backupDir = path.join(__dirname, 'backups');
         await fs.mkdir(backupDir, { recursive: true });
         
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupFile = path.join(backupDir, `backup-${timestamp}.zip`);
+        const backupFile = path.join(backupDir, `backup-${Date.now()}.zip`);
         const archiver = require('archiver');
         const output = fsSync.createWriteStream(backupFile);
         const archive = archiver('zip', { zlib: { level: 9 } });
         
         output.on('close', () => {
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Disposition', `attachment; filename="lua-works-backup-${timestamp}.zip"`);
-            res.download(backupFile, (err) => {
+            res.download(backupFile, `lua-works-backup-${Date.now()}.zip`, (err) => {
                 if (err) {
-                    // Ignorar erro
+                    console.error('Erro ao baixar backup:', err);
                 }
                 fs.unlink(backupFile).catch(() => {});
             });
@@ -1632,25 +1319,20 @@ app.get('/api/admin/backup', authenticateToken, async (req, res) => {
         archive.finalize();
 
     } catch (error) {
+        console.error('Erro no backup:', error);
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 
 app.get('/admin', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
     res.sendFile(path.join(__dirname, '/public/admin-login.html'));
 });
 
 app.get('/admin/dashboard', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
     res.sendFile(path.join(__dirname, '/public/admin-dashboard.html'));
 });
 
 app.get('*', (req, res) => {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.sendFile(path.join(PUBLIC_PATH, 'index.html'));
 });
 
@@ -1661,7 +1343,7 @@ async function startServer() {
         await fs.mkdir(PUBLIC_PATH, { recursive: true });
         await fs.mkdir(path.join(__dirname, 'backups'), { recursive: true });
         
-        const files = ['users.json', 'products.json', 'orders.json', 'stats.json', 'downloads.json', 'reviews.json', 'logs.json', 'security.json'];
+        const files = ['users.json', 'products.json', 'orders.json', 'stats.json', 'downloads.json', 'reviews.json', 'logs.json'];
         for (const file of files) {
             try {
                 await fs.access(path.join(DB_PATH, file));
@@ -1673,21 +1355,21 @@ async function startServer() {
                 else if (file === 'downloads.json') await writeDatabase(file, { downloads: [] });
                 else if (file === 'reviews.json') await writeDatabase(file, { reviews: [] });
                 else if (file === 'logs.json') await writeDatabase(file, { logs: [] });
-                else if (file === 'security.json') await writeDatabase(file, { failedAttempts: [], blockedIPs: [] });
             }
         }
 
         await syncAdminUser();
 
+        console.log(`Servidor Lua Works iniciado com sucesso.`);
+
         app.listen(PORT, () => {
-            console.log(`Servidor Lua Works rodando na porta ${PORT}`);
+            console.log(`Servidor rodando na porta ${PORT}`);
         });
+
     } catch (error) {
         console.error('Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 }
 
-startServer().catch((error) => {
-    console.error('Erro fatal:', error);
-});
+startServer().catch(console.error);

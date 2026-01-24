@@ -111,7 +111,56 @@ const sampleProducts = [
     }
 ];
 
-const sampleUpcoming = [];
+const sampleUpcoming = [
+    {
+        id: 'ai-trainer',
+        name: 'AI Trainer Pro',
+        description: 'Sistema de treinamento de IA para bots',
+        category: 'automation',
+        price: '0.015',
+        currency: 'BTC',
+        rating: 0,
+        downloads: 0,
+        version: '1.0',
+        fileSize: '45KB',
+        features: ['Neural networks', 'Auto-learning', 'Pattern recognition'],
+        uploadDate: '2024-02-15',
+        status: 'upcoming',
+        expectedRelease: '2024-02-28'
+    },
+    {
+        id: 'multi-bot',
+        name: 'Multi-Bot Network',
+        description: 'Rede de bots coordenados',
+        category: 'bot',
+        price: '0.020',
+        currency: 'BTC',
+        rating: 0,
+        downloads: 0,
+        version: '2.0',
+        fileSize: '60KB',
+        features: ['Distributed system', 'Load balancing', 'Failover'],
+        uploadDate: '2024-02-20',
+        status: 'upcoming',
+        expectedRelease: '2024-03-05'
+    },
+    {
+        id: 'cloud-sync',
+        name: 'Cloud Sync Pro',
+        description: 'Sincronização em nuvem de configurações e scripts',
+        category: 'system',
+        price: '0.007',
+        currency: 'BTC',
+        rating: 0,
+        downloads: 0,
+        version: '1.2',
+        fileSize: '18KB',
+        features: ['Cloud backup', 'Cross-device sync', 'Version control'],
+        uploadDate: '2024-02-10',
+        status: 'upcoming',
+        expectedRelease: '2024-02-25'
+    }
+];
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Lua Works - Inicializando sistema...');
@@ -136,12 +185,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllData() {
     try {
+        // Tenta carregar dados da API
         const [productsData, currenciesData, upcomingData] = await Promise.all([
             fetchData('/products'),
             fetchData('/currencies'),
             fetchData('/products/upcoming')
         ]);
         
+        // Usa dados da API ou dados locais como fallback
         products = productsData || sampleProducts;
         currencies = currenciesData || getDefaultCurrencies();
         upcomingProducts = upcomingData || sampleUpcoming;
@@ -208,6 +259,11 @@ async function fetchData(endpoint) {
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
+            // Se for 404, retorna null para usar dados locais
+            if (response.status === 404) {
+                console.warn(`Endpoint não encontrado: ${endpoint}`);
+                return null;
+            }
             throw new Error(`HTTP ${response.status}`);
         }
         return await response.json();
@@ -338,6 +394,7 @@ function updateProductButton(productId, inCart) {
     if (productCard) {
         const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
+            // Atualiza o botão conforme necessário
         }
     }
 }
@@ -415,6 +472,8 @@ function renderProducts() {
                                     <i class="fas fa-clock"></i> EM BREVE
                                 </button>
                             ` : `
+                                <button class="btn btn-primary" onclick="addToCart('${product.id}')">
+                                    <i class="fas fa-cart-plus"></i> ${inCart ? 'NO CARRINHO' : 'COMPRAR'}
                                 </button>
                                 <button class="btn btn-info" onclick="viewProductDetails('${product.id}')">
                                     <i class="fas fa-info-circle"></i> DETALHES
@@ -1669,6 +1728,8 @@ function viewProductDetails(productId) {
                                     </button>
                                     <p class="purchased-info">Você já possui este produto</p>
                                 ` : `
+                                    <button class="btn btn-primary" onclick="addToCart('${product.id}'); closeModal('productDetailsModal')">
+                                        <i class="fas fa-cart-plus"></i> Adicionar ao Carrinho
                                     </button>
                                     <button class="btn btn-primary" onclick="openPaymentModal('${product.id}'); closeModal('productDetailsModal')">
                                         <i class="fas fa-shopping-cart"></i> Comprar Agora
@@ -1887,8 +1948,10 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
             }
         };
         socket.onerror = () => {
+            // Ignora erros de WebSocket em produção
         };
     } catch (e) {
+        // Ignora erros de WebSocket
     }
 }
 
@@ -1916,3 +1979,56 @@ window.removeFromCart = removeFromCart;
 window.openPurchasesModal = openPurchasesModal;
 window.showAdminAccessPanel = showAdminAccessPanel;
 window.showAdminDashboard = showAdminDashboard;
+
+// Funções auxiliares que podem estar faltando
+function closeDownloadModal() {
+    const modal = document.getElementById('downloadModal');
+    if (modal) {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '0';
+            modalContent.style.transform = 'translateY(-50px)';
+        }
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            modal.remove();
+        }, 300);
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showMessage('Copiado para a área de transferência!', 'success');
+    }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showMessage('Copiado!', 'success');
+    });
+}
+
+function downloadAllFiles() {
+    showMessage('Iniciando download de todos os arquivos...', 'info');
+    const purchases = userPurchases.filter(p => p.status === 'completed');
+    purchases.forEach((purchase, index) => {
+        setTimeout(() => {
+            if (purchase.productId !== 'cart-checkout') {
+                downloadProduct(purchase.productId);
+            }
+        }, index * 500);
+    });
+}
+
+function downloadFile(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}

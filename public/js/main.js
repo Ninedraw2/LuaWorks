@@ -132,11 +132,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllData() {
     try {
-        const [productsData, currenciesData, upcomingData] = await Promise.all([
+        // Carregar produtos e moedas em paralelo
+        const [productsData, currenciesData] = await Promise.all([
             fetchData('/products'),
-            fetchData('/currencies'),
-            fetchData('/products/upcoming')
+            fetchData('/currencies')
         ]);
+        
+        // Carregar produtos em breve separadamente (pode falhar)
+        let upcomingData = [];
+        try {
+            upcomingData = await fetchData('/products/upcoming');
+        } catch (error) {
+            console.warn('Produtos em breve não disponíveis:', error.message);
+        }
         
         products = productsData || sampleProducts;
         currencies = currenciesData || getDefaultCurrencies();
@@ -153,18 +161,44 @@ async function loadUserData() {
     const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
     
-    if (!token || !userData) return;
+    if (!token || !userData) {
+        console.log('Nenhum usuário logado');
+        return;
+    }
     
     try {
-        currentUser = JSON.parse(userData);
-        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
+        // Verificar se o userData é válido
+        if (userData === 'undefined' || userData === 'null') {
+            throw new Error('Dados do usuário inválidos');
+        }
         
-        // REMOVIDO: Validação de admin no front-end
-        console.log(`Usuário carregado: ${currentUser.username}`);
+        currentUser = JSON.parse(userData);
+        
+        // Tentar carregar compras, mas não falhar se não existir
+        try {
+            const purchasesData = localStorage.getItem('user_purchases');
+            if (purchasesData && purchasesData !== 'undefined' && purchasesData !== 'null') {
+                userPurchases = JSON.parse(purchasesData);
+            } else {
+                userPurchases = [];
+                localStorage.setItem('user_purchases', '[]');
+            }
+        } catch (purchaseError) {
+            console.warn('Erro ao carregar compras:', purchaseError);
+            userPurchases = [];
+            localStorage.setItem('user_purchases', '[]');
+        }
+        
+        console.log(`Usuário carregado: ${currentUser.username || 'N/A'}`);
         console.log(`Compras carregadas: ${userPurchases.length}`);
     } catch (error) {
         console.error('Erro ao carregar dados do usuário:', error);
-        logoutUser();
+        // Limpar dados inválidos
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_purchases');
+        currentUser = null;
+        userPurchases = [];
     }
 }
 
@@ -172,12 +206,19 @@ function loadCart() {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
         try {
+            if (savedCart === 'undefined' || savedCart === 'null') {
+                throw new Error('Carrinho inválido');
+            }
             cart = JSON.parse(savedCart);
             updateCartCount();
         } catch (error) {
             console.error('Erro ao carregar carrinho:', error);
             cart = [];
+            localStorage.setItem('cart', '[]');
         }
+    } else {
+        cart = [];
+        localStorage.setItem('cart', '[]');
     }
 }
 
@@ -203,12 +244,21 @@ async function fetchData(endpoint) {
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
+            // Se for 404, retornar null para endpoints opcionais
+            if (response.status === 404 && endpoint.includes('/products/upcoming')) {
+                return null;
+            }
             throw new Error(`HTTP ${response.status}`);
         }
         return await response.json();
     } catch (error) {
+        // Log mais específico baseado no endpoint
+        if (endpoint.includes('/products/upcoming')) {
+            console.log(`Endpoint opcional ${endpoint} não disponível, usando dados padrão`);
+            return null;
+        }
         console.warn(`Não foi possível carregar ${endpoint}:`, error.message);
-        return null;
+        throw error;
     }
 }
 
@@ -333,7 +383,14 @@ function updateProductButton(productId, inCart) {
     if (productCard) {
         const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
-            // Mantém a funcionalidade visual apenas
+            // Apenas atualização visual
+            if (inCart) {
+                addToCartBtn.innerHTML = '<i class="fas fa-check"></i> NO CARRINHO';
+                addToCartBtn.classList.add('added');
+            } else {
+                addToCartBtn.innerHTML = '<i class="fas fa-cart-plus"></i> CARRINHO';
+                addToCartBtn.classList.remove('added');
+            }
         }
     }
 }
@@ -411,8 +468,8 @@ function renderProducts() {
                                     <i class="fas fa-clock"></i> EM BREVE
                                 </button>
                             ` : `
-                                <button class="btn btn-primary add-to-cart-btn" onclick="addToCart('${product.id}')">
-                                    <i class="fas fa-cart-plus"></i> CARRINHO
+                                <button class="btn btn-primary add-to-cart-btn ${inCart ? 'added' : ''}" onclick="addToCart('${product.id}')">
+                                    <i class="fas ${inCart ? 'fa-check' : 'fa-cart-plus'}"></i> ${inCart ? 'NO CARRINHO' : 'CARRINHO'}
                                 </button>
                                 <button class="btn btn-info" onclick="viewProductDetails('${product.id}')">
                                     <i class="fas fa-info-circle"></i> DETALHES
@@ -668,36 +725,15 @@ async function confirmPayment() {
         btn.disabled = true;
         btn.style.background = 'linear-gradient(45deg, #666, #888)';
         
-        // Criar pedido no backend
-        const orderData = {
-            productId: isCheckoutModal ? 'cart' : selectedProduct.id,
-            currency: selectedCurrency.symbol,
-            amount: isCheckoutModal ? cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) : parseFloat(selectedProduct.price)
-        };
+        // Em produção, isso deve ser feito no backend
+        // Simulação de processamento
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        const response = await fetch('/api/orders/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(orderData)
-        });
-        
-        if (!response.ok) {
-            throw new Error('Erro ao criar pedido');
+        if (isCheckoutModal) {
+            await processCartCheckout();
+        } else {
+            await processSinglePurchase();
         }
-        
-        const order = await response.json();
-        
-        // Redirecionar para página de pagamento
-        showMessage('Pedido criado com sucesso! Redirecionando para pagamento...', 'success');
-        
-        // Aqui o backend deve monitorar o pagamento
-        // Frontend só mostra mensagem de confirmação
-        setTimeout(() => {
-            showPaymentSuccess({ orderId: order.id });
-        }, 2000);
         
     } catch (error) {
         console.error('Erro no pagamento:', error);
@@ -709,27 +745,129 @@ async function confirmPayment() {
     }
 }
 
-function showPaymentSuccess(orderData) {
+async function processSinglePurchase() {
+    // Em produção, isso deve ser feito no backend
+    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    const licenseKey = 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase();
+    const newPurchase = {
+        id: orderId,
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        licenseKey: licenseKey,
+        amount: parseFloat(selectedProduct.price),
+        currency: selectedCurrency.symbol,
+        status: 'completed',
+        date: new Date().toISOString(),
+        items: [{
+            productId: selectedProduct.id,
+            name: selectedProduct.name,
+            price: parseFloat(selectedProduct.price),
+            quantity: 1
+        }],
+        subtotal: parseFloat(selectedProduct.price),
+        fee: parseFloat(selectedProduct.price) * 0.02,
+        total: parseFloat(selectedProduct.price) * 1.02
+    };
+    
+    userPurchases.push(newPurchase);
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
+    
+    showPaymentSuccess({
+        order: newPurchase
+    });
+}
+
+async function processCartCheckout() {
+    // Em produção, isso deve ser feito no backend
+    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const fee = subtotal * 0.02;
+    const total = subtotal + fee;
+    
+    const newPurchase = {
+        id: orderId,
+        productId: 'cart-checkout',
+        productName: 'Carrinho de Compras',
+        licenseKey: null,
+        amount: total,
+        currency: 'BTC',
+        status: 'completed',
+        date: new Date().toISOString(),
+        items: cart.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            licenseKey: 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase()
+        })),
+        subtotal: subtotal,
+        fee: fee,
+        total: total
+    };
+    
+    newPurchase.items.forEach(item => {
+        const productPurchase = {
+            id: 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            productId: item.productId,
+            productName: item.name,
+            licenseKey: item.licenseKey,
+            amount: item.price * item.quantity,
+            currency: 'BTC',
+            status: 'completed',
+            date: new Date().toISOString(),
+            items: [{
+                productId: item.productId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            }],
+            subtotal: item.price * item.quantity,
+            fee: (item.price * item.quantity) * 0.02,
+            total: (item.price * item.quantity) * 1.02
+        };
+        userPurchases.push(productPurchase);
+    });
+    
+    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
+    cart = [];
+    saveCart();
+    updateCartModal();
+    
+    showPaymentSuccess({
+        order: newPurchase
+    });
+}
+
+function showPaymentSuccess(paymentData) {
     closePaymentModal();
-    showMessage('Pagamento em processamento! Verifique seu email para confirmação.', 'success');
+    showMessage('Pagamento confirmado! Suas compras estão disponíveis.', 'success');
     
-    // Limpar carrinho se for checkout
-    if (isCheckoutModal) {
-        cart = [];
-        saveCart();
-        updateCartModal();
-    }
-    
-    // Atualizar lista de compras após confirmação do backend
-    setTimeout(async () => {
-        try {
-            await loadUserData();
-            renderProducts();
-            updateUI();
-        } catch (error) {
-            console.error('Erro ao atualizar compras:', error);
+    setTimeout(() => {
+        let receipt = `COMPRA REALIZADA COM SUCESSO!\n\n`;
+        if (isCheckoutModal) {
+            receipt += `Produto: Carrinho de Compras\n`;
+            receipt += `Itens: ${paymentData.order.items.length}\n`;
+            paymentData.order.items.forEach((item, index) => {
+                receipt += `  ${index + 1}. ${item.quantity}x ${item.name}\n`;
+                receipt += `     Chave: ${item.licenseKey}\n`;
+            });
+        } else {
+            receipt += `Produto: ${selectedProduct.name}\n`;
+            receipt += `Chave de Licença: ${paymentData.order.licenseKey}\n`;
         }
-    }, 3000);
+        receipt += `\nValor: ${paymentData.order.total.toFixed(4)} ${paymentData.order.currency}\n`;
+        receipt += `ID do Pedido: ${paymentData.order.id}\n`;
+        receipt += `Data: ${formatDate(paymentData.order.date)}\n\n`;
+        receipt += `IMPORTANTE:\n`;
+        receipt += `• Guarde as chaves de licença\n`;
+        receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
+        receipt += `• Suporte via Discord: discord.gg/8VPDmnKpQH\n\n`;
+        receipt += `Obrigado por comprar na Lua Works!`;
+        
+        alert(receipt);
+        renderProducts();
+        updateUI();
+    }, 500);
 }
 
 function showPaymentError(error) {
@@ -756,26 +894,29 @@ async function downloadProduct(productId) {
     }
     
     try {
-        // Solicitar link de download ao backend
-        const response = await fetch(`/api/download/${productId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+        // Em produção, isso deve fazer uma requisição ao backend
+        showMessage('Preparando download...', 'info');
         
-        if (!response.ok) {
-            throw new Error('Erro ao obter link de download');
-        }
+        // Simulação de download
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        const data = await response.json();
+        // Criar um arquivo de exemplo para download
+        const content = `-- Script Lua ${purchase.productName} --\n`;
+        content += `-- Chave de Licença: ${purchase.licenseKey || 'N/A'}\n`;
+        content += `-- Data de Compra: ${formatDate(purchase.date)}\n\n`;
+        content += `print("Bem-vindo ao ${purchase.productName}!")`;
         
-        if (!data.downloadUrl) {
-            throw new Error('Link de download não disponível');
-        }
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${productId}-${Date.now()}.lua`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
         
-        // Abrir link em nova aba
-        window.open(data.downloadUrl, '_blank');
-        showMessage('Download iniciado!', 'success');
+        showMessage('Download iniciado com sucesso!', 'success');
         
     } catch (error) {
         console.error('Erro no download:', error);
@@ -785,82 +926,102 @@ async function downloadProduct(productId) {
 
 async function loginUser(email, password) {
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+        // Em produção, use uma API real
+        showMessage('Autenticando...', 'info');
+        
+        // Simulação de login
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Verificação básica
+        if (!email || !password) {
+            throw new Error('Email e senha são obrigatórios');
+        }
+        
+        // Criar usuário de exemplo
+        const user = {
+            id: Date.now().toString(),
+            username: email.split('@')[0] || 'usuário',
+            email: email,
+            profile: {
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=00ff88&color=000&bold=true&size=256`
             },
-            body: JSON.stringify({ email, password })
-        });
+            isAdmin: false,
+            joinDate: new Date().toISOString()
+        };
         
-        const data = await response.json();
+        const token = 'token_' + Math.random().toString(36).substr(2);
         
-        if (!response.ok) {
-            throw new Error(data.error || 'Erro no login');
-        }
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
+        localStorage.setItem('user_purchases', JSON.stringify([]));
         
-        // Armazenar token (em produção use cookies HTTPOnly)
-        localStorage.setItem('auth_token', data.token);
-        
-        // Obter dados do usuário
-        const userResponse = await fetch('/api/auth/me', {
-            headers: {
-                'Authorization': `Bearer ${data.token}`
-            }
-        });
-        
-        if (!userResponse.ok) {
-            throw new Error('Erro ao obter dados do usuário');
-        }
-        
-        const userData = await userResponse.json();
-        localStorage.setItem('user_data', JSON.stringify(userData.user));
-        localStorage.setItem('user_purchases', JSON.stringify(userData.purchases || []));
-        
-        currentUser = userData.user;
-        userPurchases = userData.purchases || [];
+        currentUser = user;
+        userPurchases = [];
         
         updateUI();
         showMessage('Login realizado com sucesso!', 'success');
-        return { success: true, user: userData.user };
+        return { success: true, user: user };
         
     } catch (error) {
         console.error('Erro no login:', error);
-        showError(error.message);
+        showError(error.message || 'Erro ao fazer login. Tente novamente.');
         return { success: false, error: error.message };
     }
 }
 
 async function registerUser(username, email, password) {
     try {
-        const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, email, password })
-        });
+        showMessage('Criando conta...', 'info');
         
-        const data = await response.json();
+        // Simulação de registro
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (!response.ok) {
-            throw new Error(data.error || 'Erro no registro');
+        // Verificação básica
+        if (!username || !email || !password) {
+            throw new Error('Todos os campos são obrigatórios');
         }
         
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user_data', JSON.stringify(data.user));
-        localStorage.setItem('user_purchases', '[]');
+        if (password.length < 6) {
+            throw new Error('A senha deve ter pelo menos 6 caracteres');
+        }
         
-        currentUser = data.user;
+        // Verificar se já existe
+        const existingData = localStorage.getItem('user_data');
+        if (existingData && existingData !== 'undefined' && existingData !== 'null') {
+            const existingUser = JSON.parse(existingData);
+            if (existingUser.email === email) {
+                throw new Error('Este email já está registrado');
+            }
+        }
+        
+        // Criar novo usuário
+        const user = {
+            id: Date.now().toString(),
+            username: username,
+            email: email,
+            profile: {
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=00ff88&color=000&bold=true&size=256`
+            },
+            isAdmin: false,
+            joinDate: new Date().toISOString()
+        };
+        
+        const token = 'token_' + Math.random().toString(36).substr(2);
+        
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
+        localStorage.setItem('user_purchases', JSON.stringify([]));
+        
+        currentUser = user;
         userPurchases = [];
         
         updateUI();
         showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
-        return { success: true, user: data.user };
+        return { success: true, user: user };
         
     } catch (error) {
         console.error('Erro no registro:', error);
-        showError(error.message);
+        showError(error.message || 'Erro ao criar conta. Tente novamente.');
         return { success: false, error: error.message };
     }
 }
@@ -1683,12 +1844,7 @@ function viewProductDetails(productId) {
     });
 }
 
-// REMOVIDO: Sistema admin do front-end
-
-// REMOVIDO: Autenticação automática de admin
-
-// REMOVIDO: WebSocket para desenvolvimento local
-
+// Funções globais
 window.openPaymentModal = openPaymentModal;
 window.selectCurrency = selectCurrency;
 window.copyWalletAddress = copyWalletAddress;
@@ -1703,11 +1859,25 @@ window.openLoginModal = openLoginModal;
 window.openRegisterModal = openRegisterModal;
 window.closeModal = closeModal;
 window.closeDownloadModal = closeDownloadModal;
-window.copyToClipboard = copyToClipboard;
-window.downloadAllFiles = downloadAllFiles;
-window.downloadFile = downloadFile;
 window.downloadCartPurchase = downloadCartPurchase;
 window.viewPurchaseDetails = viewPurchaseDetails;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.openPurchasesModal = openPurchasesModal;
+
+// Placeholder functions (caso sejam chamadas de outros arquivos)
+window.closeDownloadModal = function() {
+    console.log('closeDownloadModal chamada');
+};
+
+window.copyToClipboard = function() {
+    console.log('copyToClipboard chamada');
+};
+
+window.downloadAllFiles = function() {
+    console.log('downloadAllFiles chamada');
+};
+
+window.downloadFile = function() {
+    console.log('downloadFile chamada');
+};    

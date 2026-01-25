@@ -8,95 +8,6 @@ let currentUser = null;
 let userPurchases = [];
 let cart = [];
 let isCheckoutModal = false;
-let adminEnabled = false;
-let adminSequence = [];
-const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
-
-// [SECURITY PATCH] Rate limiting
-const rateLimitStore = new Map();
-function rateLimit(key, limit = 5, windowMs = 60000) {
-    const now = Date.now();
-    const entry = rateLimitStore.get(key) || { count: 0, resetTime: now + windowMs };
-    
-    if (now > entry.resetTime) {
-        entry.count = 0;
-        entry.resetTime = now + windowMs;
-    }
-    
-    entry.count++;
-    rateLimitStore.set(key, entry);
-    
-    if (entry.count > limit) {
-        throw new Error('Too many requests. Please wait.');
-    }
-}
-
-// [SECURITY PATCH] Enhanced escapeHtml
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;');
-}
-
-// [SECURITY PATCH] Auth validation
-function requireAuth() {
-    const token = localStorage.getItem('auth_token');
-    const userData = localStorage.getItem('user_data');
-    
-    if (!token || !userData) {
-        throw new Error('Authentication required');
-    }
-    
-    try {
-        const user = JSON.parse(userData);
-        if (!user.id || !user.username || !user.email) {
-            throw new Error('Invalid user data');
-        }
-        
-        // [SECURITY PATCH] Reject admin if not explicitly from backend
-        if (user.isAdmin && !user._adminVerified) {
-            console.warn('Admin flag not verified by backend');
-            user.isAdmin = false;
-        }
-        
-        return user;
-    } catch (error) {
-        throw new Error('Invalid session data');
-    }
-}
-
-// [SECURITY PATCH] Anti-tamper check
-function integrityCheck() {
-    const criticalFunctions = [
-        'requireAuth',
-        'escapeHtml',
-        'rateLimit',
-        'processSinglePurchase',
-        'processCartCheckout',
-        'confirmPayment'
-    ];
-    
-    for (const funcName of criticalFunctions) {
-        if (typeof window[funcName] !== 'function') {
-            console.error(`Critical function ${funcName} tampered!`);
-            alert('Security violation detected. Page will reload.');
-            setTimeout(() => location.reload(), 1000);
-            return false;
-        }
-    }
-    return true;
-}
-
-// [SECURITY PATCH] Initialize integrity check
-setTimeout(integrityCheck, 1000);
-setInterval(integrityCheck, 30000);
 
 const sampleProducts = [
     {
@@ -208,7 +119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadCart();
         setupEventListeners();
         setupAnimations();
-        setupAdminSystem();
         updateUI();
         renderProducts();
         renderCurrencies();
@@ -246,19 +156,11 @@ async function loadUserData() {
     if (!token || !userData) return;
     
     try {
-        // [SECURITY PATCH] Validate user data structure
-        const parsedData = JSON.parse(userData);
-        if (!parsedData.id || !parsedData.username || !parsedData.email) {
-            throw new Error('Invalid user data structure');
-        }
-        
-        currentUser = parsedData;
+        currentUser = JSON.parse(userData);
         userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
         
-        // [SECURITY PATCH] Remove hardcoded admin promotion
-        currentUser.isAdmin = Boolean(currentUser.isAdmin && currentUser._adminVerified);
-        
-        console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
+        // REMOVIDO: Validação de admin no front-end
+        console.log(`Usuário carregado: ${currentUser.username}`);
         console.log(`Compras carregadas: ${userPurchases.length}`);
     } catch (error) {
         console.error('Erro ao carregar dados do usuário:', error);
@@ -270,21 +172,8 @@ function loadCart() {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
         try {
-            const parsedCart = JSON.parse(savedCart);
-            // [SECURITY PATCH] Validate cart structure
-            if (Array.isArray(parsedCart)) {
-                cart = parsedCart.filter(item => 
-                    item && 
-                    typeof item.productId === 'string' &&
-                    typeof item.name === 'string' &&
-                    typeof item.price === 'number' &&
-                    item.price > 0 &&
-                    typeof item.quantity === 'number' &&
-                    item.quantity > 0 &&
-                    item.quantity <= 100
-                );
-                updateCartCount();
-            }
+            cart = JSON.parse(savedCart);
+            updateCartCount();
         } catch (error) {
             console.error('Erro ao carregar carrinho:', error);
             cart = [];
@@ -356,24 +245,11 @@ function getDefaultCurrencies() {
 }
 
 function addToCart(productId) {
-    // [SECURITY PATCH] Rate limiting
-    try {
-        rateLimit(`addToCart_${productId}`, 10, 60000);
-    } catch (error) {
-        showMessage(error.message, 'error');
-        return;
-    }
-    
-    // [SECURITY PATCH] Validate product ID
     const product = products.find(p => p.id === productId);
-    if (!product) {
-        showError('Produto não encontrado');
-        return;
-    }
-    
+    if (!product) return;
     const existingItem = cart.find(item => item.productId === productId);
     if (existingItem) {
-        existingItem.quantity = Math.min(existingItem.quantity + 1, 100);
+        existingItem.quantity += 1;
     } else {
         cart.push({
             productId: product.id,
@@ -429,9 +305,9 @@ function updateCartModal() {
                 </div>
                 <div class="cart-item-info">
                     <div class="cart-item-title">${escapeHtml(item.name)}</div>
-                    <div class="cart-item-price">${item.price} ${escapeHtml(item.currency)} × ${item.quantity}</div>
+                    <div class="cart-item-price">${item.price} ${item.currency} × ${item.quantity}</div>
                 </div>
-                <button class="remove-from-cart" onclick="removeFromCart('${escapeHtml(item.productId)}')">
+                <button class="remove-from-cart" onclick="removeFromCart('${item.productId}')">
                     <i class="fas fa-trash"></i>
                 </button>
             `;
@@ -457,6 +333,7 @@ function updateProductButton(productId, inCart) {
     if (productCard) {
         const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
+            // Mantém a funcionalidade visual apenas
         }
     }
 }
@@ -474,7 +351,7 @@ function renderProducts() {
         const hasPurchased = userPurchases.some(p => p.productId === product.id);
         const inCart = cart.some(item => item.productId === product.id);
         return `
-            <div class="product-card fade-in" data-id="${escapeHtml(product.id)}" data-category="${escapeHtml(product.category || 'automation')}" data-upcoming="${isUpcoming}">
+            <div class="product-card fade-in" data-id="${product.id}" data-category="${product.category || 'automation'}" data-upcoming="${isUpcoming}">
                 ${isFeatured ? '<div class="product-badge featured">DESTAQUE</div>' : ''}
                 ${isUpcoming ? '<div class="product-badge upcoming">EM BREVE</div>' : ''}
                 ${hasPurchased ? '<div class="product-badge purchased"><i class="fas fa-check-circle"></i> COMPRADO</div>' : ''}
@@ -487,31 +364,31 @@ function renderProducts() {
                     <h3 class="product-title">${escapeHtml(product.name)}</h3>
                     <p class="product-description">${escapeHtml(product.description || 'Script Lua premium otimizado')}</p>
                     <div class="product-meta">
-                        <span class="product-category ${escapeHtml(product.category || 'automation')}">
-                            <i class="${getCategoryIcon(product.category)}"></i> ${escapeHtml(getCategoryName(product.category))}
+                        <span class="product-category ${product.category || 'automation'}">
+                            <i class="${getCategoryIcon(product.category)}"></i> ${getCategoryName(product.category)}
                         </span>
                         <div class="product-rating">
                             ${renderStars(product.rating || 0)}
-                            <span class="rating-text">${escapeHtml(product.rating || 'N/A')}</span>
+                            <span class="rating-text">${product.rating || 'N/A'}</span>
                         </div>
                     </div>
                     <div class="product-stats">
                         <span class="product-stat">
-                            <i class="fas fa-download"></i> ${escapeHtml(product.downloads || 0)}
+                            <i class="fas fa-download"></i> ${product.downloads || 0}
                         </span>
                         <span class="product-stat">
-                            <i class="fas fa-code-branch"></i> v${escapeHtml(product.version || '1.0')}
+                            <i class="fas fa-code-branch"></i> v${product.version || '1.0'}
                         </span>
                         <span class="product-stat">
-                            <i class="fas fa-hdd"></i> ${escapeHtml(product.fileSize || 'N/A')}
+                            <i class="fas fa-hdd"></i> ${product.fileSize || 'N/A'}
                         </span>
                     </div>
                     <div class="product-price-container">
                         <div class="product-price">
-                            ${escapeHtml(product.price)} <span class="currency-symbol">${escapeHtml(product.currency || 'BTC')}</span>
-                            ${product.originalPrice ? `<span class="original-price">${escapeHtml(product.originalPrice)} ${escapeHtml(product.currency)}</span>` : ''}
+                            ${escapeHtml(product.price)} <span class="currency-symbol">${product.currency || 'BTC'}</span>
+                            ${product.originalPrice ? `<span class="original-price">${product.originalPrice} ${product.currency}</span>` : ''}
                         </div>
-                        ${product.discount ? `<span class="product-discount">-${escapeHtml(product.discount)}%</span>` : ''}
+                        ${product.discount ? `<span class="product-discount">-${product.discount}%</span>` : ''}
                     </div>
                     <div class="product-features">
                         ${(product.features || []).slice(0, 3).map(feature => `
@@ -522,11 +399,11 @@ function renderProducts() {
                     </div>
                     <div class="product-footer">
                         <div class="product-date">
-                            <i class="fas fa-calendar"></i> ${escapeHtml(formatDate(product.uploadDate || new Date().toISOString()))}
+                            <i class="fas fa-calendar"></i> ${formatDate(product.uploadDate || new Date().toISOString())}
                         </div>
                         <div class="product-actions">
                             ${hasPurchased ? `
-                                <button class="btn btn-success" onclick="downloadProduct('${escapeHtml(product.id)}')">
+                                <button class="btn btn-success" onclick="downloadProduct('${product.id}')">
                                     <i class="fas fa-download"></i> BAIXAR
                                 </button>
                             ` : isUpcoming ? `
@@ -534,8 +411,10 @@ function renderProducts() {
                                     <i class="fas fa-clock"></i> EM BREVE
                                 </button>
                             ` : `
+                                <button class="btn btn-primary add-to-cart-btn" onclick="addToCart('${product.id}')">
+                                    <i class="fas fa-cart-plus"></i> CARRINHO
                                 </button>
-                                <button class="btn btn-info" onclick="viewProductDetails('${escapeHtml(product.id)}')">
+                                <button class="btn btn-info" onclick="viewProductDetails('${product.id}')">
                                     <i class="fas fa-info-circle"></i> DETALHES
                                 </button>
                             `}
@@ -571,13 +450,13 @@ function renderCurrencies() {
     const container = document.getElementById('currenciesGrid');
     if (!container) return;
     container.innerHTML = currencies.map(currency => `
-        <div class="currency-option" data-currency="${escapeHtml(currency.id)}" onclick="selectCurrency('${escapeHtml(currency.id)}')">
-            <div class="currency-icon ${escapeHtml(currency.id)}" style="color: ${escapeHtml(currency.color || '#00ff88')}">
-                <i class="${escapeHtml(currency.icon)}"></i>
+        <div class="currency-option" data-currency="${currency.id}" onclick="selectCurrency('${currency.id}')">
+            <div class="currency-icon ${currency.id}" style="color: ${currency.color || '#00ff88'}">
+                <i class="${currency.icon}"></i>
             </div>
-            <h4>${escapeHtml(currency.name)}</h4>
-            <p class="currency-symbol">${escapeHtml(currency.symbol)}</p>
-            <p class="currency-network">${escapeHtml(currency.network || 'Network')}</p>
+            <h4>${currency.name}</h4>
+            <p class="currency-symbol">${currency.symbol}</p>
+            <p class="currency-network">${currency.network || 'Network'}</p>
             <div class="currency-selector">
                 <div class="checkmark">
                     <i class="fas fa-check"></i>
@@ -657,11 +536,11 @@ function openPaymentModal(productId = null) {
         showError('Elementos do modal não encontrados');
         return;
     }
-    productName.textContent = escapeHtml(selectedProduct.name);
+    productName.textContent = selectedProduct.name;
     productPrice.innerHTML = `
-        <span class="price-main">${escapeHtml(selectedProduct.price)} ${escapeHtml(selectedProduct.currency || 'BTC')}</span>
+        <span class="price-main">${selectedProduct.price} ${selectedProduct.currency || 'BTC'}</span>
     `;
-    productDescription.textContent = escapeHtml(selectedProduct.description);
+    productDescription.textContent = selectedProduct.description;
     productFeatures.innerHTML = (selectedProduct.features || []).map(feature => `
         <li><i class="fas fa-check"></i> ${escapeHtml(feature)}</li>
     `).join('');
@@ -716,11 +595,11 @@ function updateWalletAddress() {
     const addressElement = document.getElementById('walletAddress');
     const networkElement = document.getElementById('walletNetwork');
     if (addressElement) {
-        addressElement.textContent = escapeHtml(selectedCurrency.address);
-        addressElement.style.color = escapeHtml(selectedCurrency.color || '#00ff88');
+        addressElement.textContent = selectedCurrency.address;
+        addressElement.style.color = selectedCurrency.color || '#00ff88';
     }
     if (networkElement) {
-        networkElement.textContent = `Rede: ${escapeHtml(selectedCurrency.network || 'Mainnet')}`;
+        networkElement.textContent = `Rede: ${selectedCurrency.network || 'Mainnet'}`;
     }
 }
 
@@ -731,13 +610,13 @@ function updateQRCode() {
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selectedCurrency.address)}`;
     qrElement.innerHTML = `
         <div class="qr-container">
-            <img src="${qrCodeUrl}" alt="QR Code para ${escapeHtml(selectedCurrency.name)}" class="qr-image">
+            <img src="${qrCodeUrl}" alt="QR Code para ${selectedCurrency.name}" class="qr-image">
             <div class="qr-info">
                 <div class="qr-currency">
-                    <i class="${escapeHtml(selectedCurrency.icon)}" style="color: ${escapeHtml(selectedCurrency.color)}"></i>
-                    <span>${escapeHtml(selectedCurrency.name)} (${escapeHtml(selectedCurrency.symbol)})</span>
+                    <i class="${selectedCurrency.icon}" style="color: ${selectedCurrency.color}"></i>
+                    <span>${selectedCurrency.name} (${selectedCurrency.symbol})</span>
                 </div>
-                <div class="qr-network">${escapeHtml(selectedCurrency.network || 'Network')}</div>
+                <div class="qr-network">${selectedCurrency.network || 'Network'}</div>
             </div>
         </div>
     `;
@@ -764,23 +643,6 @@ function resetCurrencySelection() {
 }
 
 async function confirmPayment() {
-    // [SECURITY PATCH] Auth check
-    try {
-        requireAuth();
-    } catch (error) {
-        showError('Autenticação necessária');
-        openLoginModal();
-        return;
-    }
-    
-    // [SECURITY PATCH] Rate limiting
-    try {
-        rateLimit('confirmPayment', 3, 60000);
-    } catch (error) {
-        showMessage(error.message, 'error');
-        return;
-    }
-    
     if (!selectedProduct) {
         showError('Nenhum produto selecionado');
         return;
@@ -795,20 +657,48 @@ async function confirmPayment() {
         openLoginModal();
         return;
     }
+    
     const btn = document.getElementById('confirmPaymentBtn');
     if (!btn) return;
     const originalText = btn.innerHTML;
     const originalBg = btn.style.background;
+    
     try {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO PAGAMENTO...';
         btn.disabled = true;
         btn.style.background = 'linear-gradient(45deg, #666, #888)';
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        if (isCheckoutModal) {
-            await processCartCheckout();
-        } else {
-            await processSinglePurchase();
+        
+        // Criar pedido no backend
+        const orderData = {
+            productId: isCheckoutModal ? 'cart' : selectedProduct.id,
+            currency: selectedCurrency.symbol,
+            amount: isCheckoutModal ? cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) : parseFloat(selectedProduct.price)
+        };
+        
+        const response = await fetch('/api/orders/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(orderData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao criar pedido');
         }
+        
+        const order = await response.json();
+        
+        // Redirecionar para página de pagamento
+        showMessage('Pedido criado com sucesso! Redirecionando para pagamento...', 'success');
+        
+        // Aqui o backend deve monitorar o pagamento
+        // Frontend só mostra mensagem de confirmação
+        setTimeout(() => {
+            showPaymentSuccess({ orderId: order.id });
+        }, 2000);
+        
     } catch (error) {
         console.error('Erro no pagamento:', error);
         showPaymentError(error);
@@ -819,254 +709,78 @@ async function confirmPayment() {
     }
 }
 
-async function processSinglePurchase() {
-    // [SECURITY PATCH] Auth check
-    requireAuth();
-    
-    // [SECURITY PATCH] Rate limiting
-    rateLimit('processSinglePurchase', 5, 60000);
-    
-    // [SECURITY PATCH] Validate price from products array, not selectedProduct
-    const actualProduct = products.find(p => p.id === selectedProduct?.id);
-    if (!actualProduct) {
-        throw new Error('Produto não encontrado na base de dados');
-    }
-    
-    const actualPrice = parseFloat(actualProduct.price);
-    if (isNaN(actualPrice) || actualPrice <= 0) {
-        throw new Error('Preço inválido');
-    }
-    
-    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-    const licenseKey = 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase();
-    const newPurchase = {
-        id: orderId,
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        licenseKey: licenseKey,
-        amount: actualPrice, // [SECURITY PATCH] Use validated price
-        currency: selectedCurrency.symbol,
-        status: 'completed',
-        date: new Date().toISOString(),
-        items: [{
-            productId: selectedProduct.id,
-            name: selectedProduct.name,
-            price: actualPrice, // [SECURITY PATCH] Use validated price
-            quantity: 1
-        }],
-        subtotal: actualPrice,
-        fee: actualPrice * 0.02,
-        total: actualPrice * 1.02
-    };
-    userPurchases.push(newPurchase);
-    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
-    showPaymentSuccess({
-        order: newPurchase
-    });
-}
-
-async function processCartCheckout() {
-    // [SECURITY PATCH] Auth check
-    requireAuth();
-    
-    // [SECURITY PATCH] Rate limiting
-    rateLimit('processCartCheckout', 3, 60000);
-    
-    const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-    
-    // [SECURITY PATCH] Validate all cart items against products array
-    const validatedItems = [];
-    let subtotal = 0;
-    
-    for (const cartItem of cart) {
-        const actualProduct = products.find(p => p.id === cartItem.productId);
-        if (!actualProduct) {
-            throw new Error(`Produto ${cartItem.productId} não encontrado`);
-        }
-        
-        const actualPrice = parseFloat(actualProduct.price);
-        if (isNaN(actualPrice) || actualPrice <= 0) {
-            throw new Error(`Preço inválido para ${actualProduct.name}`);
-        }
-        
-        const quantity = Math.min(Math.max(1, cartItem.quantity), 100);
-        const itemTotal = actualPrice * quantity;
-        
-        validatedItems.push({
-            productId: cartItem.productId,
-            name: cartItem.name,
-            price: actualPrice, // [SECURITY PATCH] Use validated price
-            quantity: quantity,
-            licenseKey: 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase()
-        });
-        
-        subtotal += itemTotal;
-    }
-    
-    const fee = subtotal * 0.02;
-    const total = subtotal + fee;
-    const newPurchase = {
-        id: orderId,
-        productId: 'cart-checkout',
-        productName: 'Carrinho de Compras',
-        licenseKey: null,
-        amount: total,
-        currency: 'BTC',
-        status: 'completed',
-        date: new Date().toISOString(),
-        items: validatedItems,
-        subtotal: subtotal,
-        fee: fee,
-        total: total
-    };
-    
-    validatedItems.forEach(item => {
-        const productPurchase = {
-            id: 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-            productId: item.productId,
-            productName: item.name,
-            licenseKey: item.licenseKey,
-            amount: item.price * item.quantity,
-            currency: 'BTC',
-            status: 'completed',
-            date: new Date().toISOString(),
-            items: [{
-                productId: item.productId,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity
-            }],
-            subtotal: item.price * item.quantity,
-            fee: (item.price * item.quantity) * 0.02,
-            total: (item.price * item.quantity) * 1.02
-        };
-        userPurchases.push(productPurchase);
-    });
-    
-    localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
-    cart = [];
-    saveCart();
-    updateCartModal();
-    showPaymentSuccess({
-        order: newPurchase
-    });
-}
-
-function showPaymentSuccess(paymentData) {
+function showPaymentSuccess(orderData) {
     closePaymentModal();
-    showMessage('Pagamento confirmado! Suas compras estão disponíveis.', 'success');
-    setTimeout(() => {
-        let receipt = `COMPRA REALIZADA COM SUCESSO!\n\n`;
-        if (isCheckoutModal) {
-            receipt += `Produto: Carrinho de Compras\n`;
-            receipt += `Itens: ${paymentData.order.items.length}\n`;
-            paymentData.order.items.forEach((item, index) => {
-                receipt += `  ${index + 1}. ${item.quantity}x ${escapeHtml(item.name)}\n`;
-                receipt += `     Chave: ${item.licenseKey}\n`;
-            });
-        } else {
-            receipt += `Produto: ${escapeHtml(selectedProduct.name)}\n`;
-            receipt += `Chave de Licença: ${paymentData.order.licenseKey}\n`;
+    showMessage('Pagamento em processamento! Verifique seu email para confirmação.', 'success');
+    
+    // Limpar carrinho se for checkout
+    if (isCheckoutModal) {
+        cart = [];
+        saveCart();
+        updateCartModal();
+    }
+    
+    // Atualizar lista de compras após confirmação do backend
+    setTimeout(async () => {
+        try {
+            await loadUserData();
+            renderProducts();
+            updateUI();
+        } catch (error) {
+            console.error('Erro ao atualizar compras:', error);
         }
-        receipt += `\nValor: ${paymentData.order.total.toFixed(4)} ${paymentData.order.currency}\n`;
-        receipt += `ID do Pedido: ${paymentData.order.id}\n`;
-        receipt += `Data: ${formatDate(paymentData.order.date)}\n\n`;
-        receipt += `IMPORTANTE:\n`;
-        receipt += `• Guarde as chaves de licença\n`;
-        receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
-        receipt += `• Suporte via Discord: discord.gg/8VPDmnKpQH\n\n`;
-        receipt += `Obrigado por comprar na Lua Works!`;
-        alert(receipt);
-        renderProducts();
-        updateUI();
-    }, 500);
+    }, 3000);
 }
 
 function showPaymentError(error) {
     showMessage(`Erro no pagamento: ${error.message}`, 'error');
     setTimeout(() => {
-        if (confirm('Houve um erro no processamento. Deseja tentar novamente ou entrar em contato com o suporte?')) {
+        if (confirm('Houve um erro no processamento. Deseja tentar novamente?')) {
             openPaymentModal(isCheckoutModal ? null : selectedProduct?.id);
         }
     }, 1000);
 }
 
 async function downloadProduct(productId) {
-    // [SECURITY PATCH] Auth check
-    requireAuth();
-    
     const token = localStorage.getItem('auth_token');
     if (!token) {
         showError('Você precisa estar logado para baixar');
         openLoginModal();
         return;
     }
+    
     const purchase = userPurchases.find(p => p.productId === productId);
     if (!purchase) {
         showError('Você não possui este produto');
         return;
     }
+    
     try {
-        await downloadFromServer(productId, token);
-    } catch (error) {
-        try {
-            const response = await fetch(`/api/download/${productId}`);
-            if (response.ok) {
-                window.open(`/api/download/${productId}`, '_blank');
-            } else {
-                throw new Error('Download não disponível');
-            }
-        } catch (fallbackError) {
-            console.error('Erro no fallback:', fallbackError);
-        }
-    }
-}
-
-async function downloadFromServer(productId, token) {
-    try {
-        showMessage('Iniciando download...', 'info');
-        const response = await fetch(`/api/download/${productId}/authenticated`, {
+        // Solicitar link de download ao backend
+        const response = await fetch(`/api/download/${productId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
+        
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+            throw new Error('Erro ao obter link de download');
         }
-        let filename = 'download.lua';
-        const contentDisposition = response.headers.get('Content-Disposition');
-        if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (filenameMatch) {
-                filename = escapeHtml(filenameMatch[1]);
-            }
+        
+        const data = await response.json();
+        
+        if (!data.downloadUrl) {
+            throw new Error('Link de download não disponível');
         }
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        registerDownload(filename, productId);
-        showMessage('Download iniciado com sucesso!', 'success');
+        
+        // Abrir link em nova aba
+        window.open(data.downloadUrl, '_blank');
+        showMessage('Download iniciado!', 'success');
+        
     } catch (error) {
-        console.error('Erro no download do servidor:', error);
-        throw error;
+        console.error('Erro no download:', error);
+        showError('Não foi possível baixar o arquivo. Tente novamente mais tarde.');
     }
-}
-
-function registerDownload(filename, productId) {
-    const downloadHistory = JSON.parse(localStorage.getItem('download_history') || '[]');
-    downloadHistory.push({
-        filename: filename,
-        timestamp: new Date().toISOString(),
-        productId: productId
-    });
-    localStorage.setItem('download_history', JSON.stringify(downloadHistory));
 }
 
 async function loginUser(email, password) {
@@ -1078,29 +792,38 @@ async function loginUser(email, password) {
             },
             body: JSON.stringify({ email, password })
         });
+        
         const data = await response.json();
+        
         if (!response.ok) {
             throw new Error(data.error || 'Erro no login');
         }
         
-        // [SECURITY PATCH] Validate server response
-        if (!data.user || !data.user.id || !data.user.username || !data.user.email) {
-            throw new Error('Resposta inválida do servidor');
-        }
-        
-        // [SECURITY PATCH] Mark admin as verified by backend
-        if (data.user.isAdmin) {
-            data.user._adminVerified = true;
-        }
-        
+        // Armazenar token (em produção use cookies HTTPOnly)
         localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user_data', JSON.stringify(data.user));
-        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
-        currentUser = data.user;
-        userPurchases = data.user.orders || [];
+        
+        // Obter dados do usuário
+        const userResponse = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${data.token}`
+            }
+        });
+        
+        if (!userResponse.ok) {
+            throw new Error('Erro ao obter dados do usuário');
+        }
+        
+        const userData = await userResponse.json();
+        localStorage.setItem('user_data', JSON.stringify(userData.user));
+        localStorage.setItem('user_purchases', JSON.stringify(userData.purchases || []));
+        
+        currentUser = userData.user;
+        userPurchases = userData.purchases || [];
+        
         updateUI();
         showMessage('Login realizado com sucesso!', 'success');
-        return { success: true, user: data.user };
+        return { success: true, user: userData.user };
+        
     } catch (error) {
         console.error('Erro no login:', error);
         showError(error.message);
@@ -1117,29 +840,24 @@ async function registerUser(username, email, password) {
             },
             body: JSON.stringify({ username, email, password })
         });
+        
         const data = await response.json();
+        
         if (!response.ok) {
             throw new Error(data.error || 'Erro no registro');
-        }
-        
-        // [SECURITY PATCH] Validate server response
-        if (!data.user || !data.user.id || !data.user.username || !data.user.email) {
-            throw new Error('Resposta inválida do servidor');
-        }
-        
-        // [SECURITY PATCH] Mark admin as verified by backend
-        if (data.user.isAdmin) {
-            data.user._adminVerified = true;
         }
         
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('user_data', JSON.stringify(data.user));
         localStorage.setItem('user_purchases', '[]');
+        
         currentUser = data.user;
         userPurchases = [];
+        
         updateUI();
         showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
         return { success: true, user: data.user };
+        
     } catch (error) {
         console.error('Erro no registro:', error);
         showError(error.message);
@@ -1170,15 +888,18 @@ function setupEventListeners() {
             }
         });
     });
+    
     document.getElementById('paymentModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) {
             closePaymentModal();
         }
     });
+    
     const confirmBtn = document.getElementById('confirmPaymentBtn');
     if (confirmBtn) {
         confirmBtn.addEventListener('click', confirmPayment);
     }
+    
     window.copyWalletAddress = function() {
         const address = document.getElementById('walletAddress')?.textContent;
         if (!address || address === 'Selecione uma moeda acima') {
@@ -1210,6 +931,7 @@ function setupEventListeners() {
             showMessage('Endereço copiado!', 'success');
         });
     };
+    
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -1218,10 +940,12 @@ function setupEventListeners() {
             filterProducts(filter);
         });
     });
+    
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', toggleMobileMenu);
     }
+    
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -1229,6 +953,7 @@ function setupEventListeners() {
             }
         });
     });
+    
     window.addEventListener('resize', () => {
         const navLinks = document.querySelector('.nav-links');
         if (window.innerWidth > 768 && navLinks && navLinks.style.display === 'flex') {
@@ -1239,13 +964,16 @@ function setupEventListeners() {
             }
         }
     });
+    
     document.getElementById('loginBtn')?.addEventListener('click', openLoginModal);
     document.getElementById('registerBtn')?.addEventListener('click', openRegisterModal);
     document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
     document.getElementById('cartBtn')?.addEventListener('click', toggleCartModal);
+    
     document.querySelectorAll('.close-cart').forEach(btn => {
         btn.addEventListener('click', closeCartModal);
     });
+    
     document.getElementById('checkoutBtn')?.addEventListener('click', function() {
         closeCartModal();
         openPaymentModal();
@@ -1279,6 +1007,7 @@ function setupAnimations() {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
     });
+    
     document.querySelectorAll('.product-card, .feature-card, .expertise-item, .stat-card').forEach(el => {
         observer.observe(el);
     });
@@ -1288,11 +1017,13 @@ function filterProducts(filter) {
     const productCards = document.querySelectorAll('.product-card');
     const noResults = document.getElementById('noResults');
     let visibleCount = 0;
+    
     productCards.forEach(card => {
         const isUpcoming = card.dataset.upcoming === 'true';
         const category = card.dataset.category;
         const productId = card.dataset.id;
         let show = false;
+        
         switch(filter) {
             case 'all':
                 show = true;
@@ -1307,6 +1038,7 @@ function filterProducts(filter) {
                 show = category === filter && !isUpcoming;
                 break;
         }
+        
         if (show) {
             card.style.display = 'block';
             visibleCount++;
@@ -1315,6 +1047,7 @@ function filterProducts(filter) {
             card.style.display = 'none';
         }
     });
+    
     if (noResults) {
         if (visibleCount === 0) {
             noResults.style.display = 'block';
@@ -1322,6 +1055,7 @@ function filterProducts(filter) {
             noResults.style.display = 'none';
         }
     }
+    
     console.log(`Filtro "${filter}" aplicado: ${visibleCount} produtos visíveis`);
 }
 
@@ -1329,6 +1063,7 @@ function toggleMobileMenu() {
     const navLinks = document.querySelector('.nav-links');
     const menuBtn = document.querySelector('.mobile-menu-btn i');
     if (!navLinks || !menuBtn) return;
+    
     if (navLinks.style.display === 'flex') {
         navLinks.style.display = 'none';
         menuBtn.className = 'fas fa-bars';
@@ -1343,20 +1078,20 @@ function updateUI() {
     const registerBtn = document.getElementById('registerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const userMenu = document.getElementById('userMenu');
+    
     if (currentUser) {
         if (loginBtn) loginBtn.style.display = 'none';
         if (registerBtn) registerBtn.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'block';
+        
         if (userMenu) {
             userMenu.innerHTML = `
                 <div class="user-info">
-                    <img src="${escapeHtml(currentUser.profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.username)}&background=00ff88&color=000&bold=true&size=256`)}" alt="${escapeHtml(currentUser.username)}" class="user-avatar">
-                    <span class="username">${escapeHtml(currentUser.username)}</span>
-                    ${currentUser.isAdmin ? '<span class="admin-badge" style="background: #ff3366; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">ADMIN</span>' : ''}
+                    <img src="${currentUser.profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.username)}&background=00ff88&color=000&bold=true&size=256`}" alt="${currentUser.username}" class="user-avatar">
+                    <span class="username">${currentUser.username}</span>
                 </div>
                 <div class="user-dropdown">
                     <a href="#" onclick="openPurchasesModal()"><i class="fas fa-shopping-bag"></i> Minhas Compras</a>
-                    ${currentUser.isAdmin ? '<a href="admin-dashboard.html" target="_blank"><i class="fas fa-user-secret"></i> Painel Admin</a>' : ''}
                     <a href="#" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Sair</a>
                 </div>
             `;
@@ -1368,6 +1103,7 @@ function updateUI() {
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (userMenu) userMenu.style.display = 'none';
     }
+    
     renderProducts();
 }
 
@@ -1376,10 +1112,12 @@ function openPurchasesModal() {
         showError('Você precisa estar logado para ver suas compras');
         return;
     }
+    
     if (userPurchases.length === 0) {
         showMessage('Você ainda não fez nenhuma compra', 'info');
         return;
     }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'purchasesModal';
@@ -1402,9 +1140,11 @@ function openPurchasesModal() {
             </div>
         </div>
     `;
+    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1412,10 +1152,12 @@ function openPurchasesModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
+    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('purchasesModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('purchasesModal');
     });
+    
     modal.querySelectorAll('.purchase-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             modal.querySelectorAll('.purchase-tab').forEach(t => t.classList.remove('active'));
@@ -1424,16 +1166,19 @@ function openPurchasesModal() {
             renderPurchases(tab);
         });
     });
+    
     renderPurchases('all');
 }
 
 function renderPurchases(filter = 'all') {
     const container = document.getElementById('purchasesGrid');
     if (!container) return;
+    
     let filteredPurchases = userPurchases;
     if (filter !== 'all') {
         filteredPurchases = userPurchases.filter(purchase => purchase.status === filter);
     }
+    
     if (filteredPurchases.length === 0) {
         container.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
@@ -1444,6 +1189,7 @@ function renderPurchases(filter = 'all') {
         `;
         return;
     }
+    
     container.innerHTML = filteredPurchases.map(purchase => {
         const isCartCheckout = purchase.productId === 'cart-checkout';
         return `
@@ -1451,9 +1197,9 @@ function renderPurchases(filter = 'all') {
                 <div class="purchase-header">
                     <div>
                         <h4>${escapeHtml(purchase.productName)}</h4>
-                        <div class="purchase-id">${escapeHtml(purchase.id)}</div>
+                        <div class="purchase-id">${purchase.id}</div>
                     </div>
-                    <div class="purchase-status ${escapeHtml(purchase.status)}">
+                    <div class="purchase-status ${purchase.status}">
                         ${purchase.status === 'completed' ? 'CONCLUÍDO' : purchase.status === 'pending' ? 'PENDENTE' : 'CANCELADO'}
                     </div>
                 </div>
@@ -1462,7 +1208,7 @@ function renderPurchases(filter = 'all') {
                         <h5>Itens da Compra:</h5>
                         ${purchase.items.map(item => `
                             <div style="display: flex; justify-content: space-between; margin: 5px 0; padding: 5px; background: rgba(255,255,255,0.05); border-radius: 5px;">
-                                <span>${item.quantity}x ${escapeHtml(item.name)}</span>
+                                <span>${item.quantity}x ${item.name}</span>
                                 <span>${(item.price * item.quantity).toFixed(4)} BTC</span>
                             </div>
                         `).join('')}
@@ -1474,34 +1220,34 @@ function renderPurchases(filter = 'all') {
                         </div>
                         <div class="purchase-product-info">
                             <h4>${escapeHtml(purchase.productName)}</h4>
-                            <p>Chave: ${escapeHtml(purchase.licenseKey)}</p>
+                            <p>Chave: ${purchase.licenseKey}</p>
                         </div>
                     </div>
                 `}
                 <div class="purchase-meta">
                     <div>
-                        <i class="fas fa-calendar"></i> ${escapeHtml(formatDate(purchase.date))}
+                        <i class="fas fa-calendar"></i> ${formatDate(purchase.date)}
                     </div>
                     <div>
                         <i class="fas fa-box"></i> ${purchase.items?.length || 1} item(s)
                     </div>
                 </div>
                 <div class="purchase-total">
-                    Total: ${purchase.total.toFixed(4)} ${escapeHtml(purchase.currency)}
+                    Total: ${purchase.total.toFixed(4)} ${purchase.currency}
                 </div>
                 <div class="purchase-actions">
                     ${purchase.status === 'completed' ? `
                         ${isCartCheckout ? `
-                            <button class="btn btn-success" onclick="downloadCartPurchase('${escapeHtml(purchase.id)}')">
+                            <button class="btn btn-success" onclick="downloadCartPurchase('${purchase.id}')">
                                 <i class="fas fa-download"></i> Baixar Tudo
                             </button>
                         ` : `
-                            <button class="btn btn-success" onclick="downloadProduct('${escapeHtml(purchase.productId)}')">
+                            <button class="btn btn-success" onclick="downloadProduct('${purchase.productId}')">
                                 <i class="fas fa-download"></i> Baixar
                             </button>
                         `}
                     ` : ''}
-                    <button class="btn btn-info" onclick="viewPurchaseDetails('${escapeHtml(purchase.id)}')">
+                    <button class="btn btn-info" onclick="viewPurchaseDetails('${purchase.id}')">
                         <i class="fas fa-info-circle"></i> Detalhes
                     </button>
                 </div>
@@ -1511,19 +1257,18 @@ function renderPurchases(filter = 'all') {
 }
 
 function downloadCartPurchase(purchaseId) {
-    // [SECURITY PATCH] Auth check
-    requireAuth();
-    
     const purchase = userPurchases.find(p => p.id === purchaseId);
     if (!purchase || !purchase.items) {
         showError('Compra não encontrada');
         return;
     }
+    
     purchase.items.forEach(item => {
         setTimeout(() => {
             downloadProduct(item.productId);
         }, item.productId.charCodeAt(0) % 1000);
     });
+    
     showMessage('Downloads iniciados! Verifique seus arquivos.', 'success');
 }
 
@@ -1533,17 +1278,19 @@ function viewPurchaseDetails(purchaseId) {
         showError('Compra não encontrada');
         return;
     }
+    
     const isCartCheckout = purchase.productId === 'cart-checkout';
     let details = `DETALHES DA COMPRA\n\n`;
     details += `ID: ${purchase.id}\n`;
-    details += `Produto: ${escapeHtml(purchase.productName)}\n`;
+    details += `Produto: ${purchase.productName}\n`;
     details += `Status: ${purchase.status === 'completed' ? 'Concluído' : purchase.status === 'pending' ? 'Pendente' : 'Cancelado'}\n`;
     details += `Data: ${formatDate(purchase.date)}\n`;
     details += `Valor: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
+    
     if (isCartCheckout) {
         details += `ITENS:\n`;
         purchase.items.forEach((item, index) => {
-            details += `${index + 1}. ${item.quantity}x ${escapeHtml(item.name)}\n`;
+            details += `${index + 1}. ${item.quantity}x ${item.name}\n`;
             details += `   Preço: ${item.price.toFixed(4)} ${purchase.currency}\n`;
             details += `   Subtotal: ${(item.price * item.quantity).toFixed(4)} ${purchase.currency}\n`;
             details += `   Chave: ${item.licenseKey}\n\n`;
@@ -1551,18 +1298,22 @@ function viewPurchaseDetails(purchaseId) {
     } else {
         details += `CHAVE DE LICENÇA:\n${purchase.licenseKey}\n\n`;
     }
+    
     details += `RESUMO FINANCEIRO:\n`;
     details += `Subtotal: ${purchase.subtotal.toFixed(4)} ${purchase.currency}\n`;
     details += `Taxa (2%): ${purchase.fee.toFixed(4)} ${purchase.currency}\n`;
     details += `Total: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
+    
     details += `Para suporte, entre em contato:\n`;
     details += `Email: support@luaworks.dev\n`;
     details += `Discord: https://discord.gg/8VPDmnKpQH`;
+    
     alert(details);
 }
 
 function openLoginModal() {
     closeAllModals();
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'loginModal';
@@ -1588,9 +1339,11 @@ function openLoginModal() {
             </div>
         </div>
     `;
+    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1598,10 +1351,12 @@ function openLoginModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
+    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('loginModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('loginModal');
     });
+    
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value;
@@ -1615,6 +1370,7 @@ function openLoginModal() {
 
 function openRegisterModal() {
     closeAllModals();
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'registerModal';
@@ -1648,9 +1404,11 @@ function openRegisterModal() {
             </div>
         </div>
     `;
+    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1658,20 +1416,24 @@ function openRegisterModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
+    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('registerModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('registerModal');
     });
+    
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('registerUsername').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const confirmPassword = document.getElementById('registerConfirm').value;
+        
         if (password !== confirmPassword) {
             showError('As senhas não coincidem');
             return;
         }
+        
         const result = await registerUser(username, email, password);
         if (result.success) {
             closeModal('registerModal');
@@ -1691,11 +1453,13 @@ function closeAllModals() {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    
     const modalContent = modal.querySelector('.modal-content');
     if (modalContent) {
         modalContent.style.opacity = '0';
         modalContent.style.transform = 'translateY(-50px)';
     }
+    
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -1762,6 +1526,13 @@ function formatDate(dateString) {
     }
 }
 
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function showMessage(message, type = 'info') {
     let container = document.getElementById('messageContainer');
     if (!container) {
@@ -1769,13 +1540,16 @@ function showMessage(message, type = 'info') {
         container.id = 'messageContainer';
         document.body.appendChild(container);
     }
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     messageDiv.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
-        <span>${escapeHtml(message)}</span>
+        <span>${message}</span>
     `;
+    
     container.appendChild(messageDiv);
+    
     setTimeout(() => {
         messageDiv.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
@@ -1797,6 +1571,7 @@ function viewProductDetails(productId) {
         showError('Produto não encontrado');
         return;
     }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'productDetailsModal';
@@ -1816,17 +1591,17 @@ function viewProductDetails(productId) {
                             <h3>${escapeHtml(product.name)}</h3>
                             <p class="product-description">${escapeHtml(product.description)}</p>
                             <div class="product-meta-details">
-                                <span class="product-category ${escapeHtml(product.category)}">
-                                    <i class="${getCategoryIcon(product.category)}"></i> ${escapeHtml(getCategoryName(product.category))}
+                                <span class="product-category ${product.category}">
+                                    <i class="${getCategoryIcon(product.category)}"></i> ${getCategoryName(product.category)}
                                 </span>
                                 <div class="product-rating">
                                     ${renderStars(product.rating || 0)}
-                                    <span class="rating-text">${escapeHtml(product.rating || 'N/A')} (${escapeHtml(product.downloads || 0)} downloads)</span>
+                                    <span class="rating-text">${product.rating || 'N/A'} (${product.downloads || 0} downloads)</span>
                                 </div>
                             </div>
                             <div class="product-price-details">
-                                <div class="price-main">${escapeHtml(product.price)} ${escapeHtml(product.currency)}</div>
-                                ${product.originalPrice ? `<div class="price-original">${escapeHtml(product.originalPrice)} ${escapeHtml(product.currency)}</div>` : ''}
+                                <div class="price-main">${product.price} ${product.currency}</div>
+                                ${product.originalPrice ? `<div class="price-original">${product.originalPrice} ${product.currency}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -1844,19 +1619,19 @@ function viewProductDetails(productId) {
                             <div class="technical-info">
                                 <div class="info-row">
                                     <span class="info-label">Versão:</span>
-                                    <span class="info-value">${escapeHtml(product.version || '1.0.0')}</span>
+                                    <span class="info-value">${product.version || '1.0.0'}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">Tamanho:</span>
-                                    <span class="info-value">${escapeHtml(product.fileSize || 'N/A')}</span>
+                                    <span class="info-value">${product.fileSize || 'N/A'}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">Atualizado em:</span>
-                                    <span class="info-value">${escapeHtml(formatDate(product.lastUpdate || product.uploadDate))}</span>
+                                    <span class="info-value">${formatDate(product.lastUpdate || product.uploadDate)}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">Desenvolvedor:</span>
-                                    <span class="info-value">${escapeHtml(product.developer || 'Lua Works Team')}</span>
+                                    <span class="info-value">${product.developer || 'Lua Works Team'}</span>
                                 </div>
                             </div>
                         </div>
@@ -1867,18 +1642,20 @@ function viewProductDetails(productId) {
                                     <button class="btn btn-secondary" disabled>
                                         <i class="fas fa-clock"></i> Em Breve
                                     </button>
-                                    <p class="upcoming-info">Lançamento previsto: ${product.expectedRelease ? escapeHtml(formatDate(product.expectedRelease)) : 'Em breve'}</p>
+                                    <p class="upcoming-info">Lançamento previsto: ${product.expectedRelease ? formatDate(product.expectedRelease) : 'Em breve'}</p>
                                 ` : userPurchases.some(p => p.productId === product.id) ? `
-                                    <button class="btn btn-success" onclick="downloadProduct('${escapeHtml(product.id)}'); closeModal('productDetailsModal')">
+                                    <button class="btn btn-success" onclick="downloadProduct('${product.id}'); closeModal('productDetailsModal')">
                                         <i class="fas fa-download"></i> Baixar Agora
                                     </button>
                                     <p class="purchased-info">Você já possui este produto</p>
                                 ` : `
+                                    <button class="btn btn-primary add-to-cart-btn" onclick="addToCart('${product.id}'); closeModal('productDetailsModal')">
+                                        <i class="fas fa-cart-plus"></i> Adicionar ao Carrinho
                                     </button>
-                                    <button class="btn btn-primary" onclick="openPaymentModal('${escapeHtml(product.id)}'); closeModal('productDetailsModal')">
+                                    <button class="btn btn-success" onclick="openPaymentModal('${product.id}'); closeModal('productDetailsModal')">
                                         <i class="fas fa-shopping-cart"></i> Comprar Agora
                                     </button>
-                                    <p class="price-info">Apenas ${escapeHtml(product.price)} ${escapeHtml(product.currency)}</p>
+                                    <p class="price-info">Apenas ${product.price} ${product.currency}</p>
                                 `}
                             </div>
                         </div>
@@ -1887,9 +1664,11 @@ function viewProductDetails(productId) {
             </div>
         </div>
     `;
+    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1897,237 +1676,18 @@ function viewProductDetails(productId) {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
+    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('productDetailsModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('productDetailsModal');
     });
 }
 
-function setupAdminSystem() {
-    document.addEventListener('keydown', (e) => {
-        adminSequence.push(e.code);
-        if (adminSequence.length > adminPassword.length) {
-            adminSequence.shift();
-        }
-        if (JSON.stringify(adminSequence) === JSON.stringify(adminPassword)) {
-            activateAdminMode();
-        }
-    });
-    const logo = document.querySelector('.logo');
-    if (logo) {
-        let clickCount = 0;
-        let clickTimer;
-        logo.addEventListener('click', () => {
-            clickCount++;
-            if (clickTimer) {
-                clearTimeout(clickTimer);
-            }
-            clickTimer = setTimeout(() => {
-                if (clickCount >= 3) {
-                    showAdminAccessPanel();
-                }
-                clickCount = 0;
-            }, 500);
-        });
-    }
-}
+// REMOVIDO: Sistema admin do front-end
 
-function activateAdminMode() {
-    if (!currentUser?.isAdmin) {
-        showMessage('Admin: Usuário não tem permissões', 'error');
-        return;
-    }
-    adminEnabled = true;
-    const indicator = document.createElement('div');
-    indicator.id = 'adminIndicator';
-    indicator.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: linear-gradient(45deg, #ff3366, #ff00ff);
-        color: white;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-size: 12px;
-        font-weight: bold;
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        opacity: 0.8;
-    `;
-    indicator.innerHTML = '<i class="fas fa-user-secret"></i> ADMIN MODE';
-    document.body.appendChild(indicator);
-    addAdminFloatingButton();
-    showMessage('Modo Administrador ativado! Acesso completo liberado.', 'success');
-    console.log('Modo admin ativado');
-}
+// REMOVIDO: Autenticação automática de admin
 
-function addAdminFloatingButton() {
-    const floatingBtn = document.createElement('button');
-    floatingBtn.id = 'adminFloatingBtn';
-    floatingBtn.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: linear-gradient(45deg, #ff3366, #ff00ff);
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-size: 24px;
-        z-index: 9998;
-        box-shadow: 0 5px 15px rgba(255, 51, 102, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    `;
-    floatingBtn.innerHTML = '<i class="fas fa-cogs"></i>';
-    floatingBtn.addEventListener('mouseenter', () => {
-        floatingBtn.style.transform = 'scale(1.1)';
-        floatingBtn.style.boxShadow = '0 8px 25px rgba(255, 51, 102, 0.5)';
-    });
-    floatingBtn.addEventListener('mouseleave', () => {
-        floatingBtn.style.transform = 'scale(1)';
-        floatingBtn.style.boxShadow = '0 5px 15px rgba(255, 51, 102, 0.3)';
-    });
-    floatingBtn.addEventListener('click', function() {
-        window.open('admin-dashboard.html', '_blank');
-    });
-    document.body.appendChild(floatingBtn);
-}
-
-function showAdminAccessPanel() {
-    if (!currentUser) {
-        showMessage('Faça login primeiro', 'warning');
-        return;
-    }
-    if (!currentUser.isAdmin) {
-        showMessage('Acesso negado: Permissões insuficientes', 'error');
-        return;
-    }
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'adminAccessModal';
-    modal.style.cssText = `
-        background: rgba(0, 0, 0, 0.95);
-        align-items: center;
-        justify-content: center;
-    `;
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px; background: linear-gradient(135deg, #1a1a2e, #0f0f23);">
-            <div class="modal-header" style="border-bottom: 1px solid rgba(255, 51, 102, 0.3);">
-                <h2><i class="fas fa-user-secret"></i> Acesso Administrativo</h2>
-                <button class="close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div style="text-align: center; padding: 20px 0;">
-                    <div style="font-size: 4rem; color: #ff3366; margin-bottom: 20px;">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <h3 style="color: #ffffff; margin-bottom: 10px;">Olá, ${escapeHtml(currentUser.username)}!</h3>
-                    <p style="color: #aaccff; margin-bottom: 30px;">Nível de acesso: Administrador</p>
-                </div>
-                <div style="display: grid; gap: 15px; margin-bottom: 30px;">
-                    <a href="admin-dashboard.html" target="_blank" class="btn btn-primary" style="justify-content: center; text-decoration: none;">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard Admin
-                    </a>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => {
-        const modalContent = modal.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.style.opacity = '1';
-            modalContent.style.transform = 'translateY(0)';
-        }
-    }, 10);
-    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('adminAccessModal'));
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal('adminAccessModal');
-    });
-}
-
-function showAdminDashboard() {
-    window.open('admin-dashboard.html', '_blank');
-}
-
-setTimeout(() => {
-    if (!currentUser) {
-        const existingAdmin = localStorage.getItem('lua_works_admin_created');
-        if (!existingAdmin) {
-            const adminUser = {
-                id: '***********************8',
-                username: '********',
-                email: '***********8',
-                profile: {
-                    avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff3366&color=ffffff'
-                },
-                isAdmin: true,
-                _adminVerified: true, // [SECURITY PATCH] Mark as verified
-                joinDate: new Date().toISOString()
-            };
-            const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
-            localStorage.setItem('auth_token', adminToken);
-            localStorage.setItem('user_data', JSON.stringify(adminUser));
-            localStorage.setItem('user_purchases', '[]');
-            localStorage.setItem('lua_works_admin_created', 'true');
-        }
-    }
-}, 2000);
-
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    try {
-        const socket = new WebSocket('ws://localhost:3001');
-        socket.onmessage = (event) => {
-            if (event.data === 'reload') {
-                console.log('Recebido comando de recarregar...');
-                location.reload();
-            }
-        };
-        socket.onerror = () => {
-        };
-    } catch (e) {
-    }
-}
-
-// [SECURITY PATCH] Protect critical functions from overwriting
-Object.defineProperty(window, 'requireAuth', {
-    value: requireAuth,
-    writable: false,
-    configurable: false
-});
-
-Object.defineProperty(window, 'processSinglePurchase', {
-    value: processSinglePurchase,
-    writable: false,
-    configurable: false
-});
-
-Object.defineProperty(window, 'processCartCheckout', {
-    value: processCartCheckout,
-    writable: false,
-    configurable: false
-});
-
-Object.defineProperty(window, 'confirmPayment', {
-    value: confirmPayment,
-    writable: false,
-    configurable: false
-});
-
-Object.defineProperty(window, 'escapeHtml', {
-    value: escapeHtml,
-    writable: false,
-    configurable: false
-});
+// REMOVIDO: WebSocket para desenvolvimento local
 
 window.openPaymentModal = openPaymentModal;
 window.selectCurrency = selectCurrency;
@@ -2151,5 +1711,3 @@ window.viewPurchaseDetails = viewPurchaseDetails;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.openPurchasesModal = openPurchasesModal;
-window.showAdminAccessPanel = showAdminAccessPanel;
-window.showAdminDashboard = showAdminDashboard;

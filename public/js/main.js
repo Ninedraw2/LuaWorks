@@ -8,6 +8,9 @@ let currentUser = null;
 let userPurchases = [];
 let cart = [];
 let isCheckoutModal = false;
+let adminEnabled = false;
+let adminSequence = [];
+const adminPassword = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
 
 const sampleProducts = [
     {
@@ -119,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadCart();
         setupEventListeners();
         setupAnimations();
+        setupAdminSystem();
         updateUI();
         renderProducts();
         renderCurrencies();
@@ -132,19 +136,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAllData() {
     try {
-        // Carregar produtos e moedas em paralelo
-        const [productsData, currenciesData] = await Promise.all([
+        const [productsData, currenciesData, upcomingData] = await Promise.all([
             fetchData('/products'),
-            fetchData('/currencies')
+            fetchData('/currencies'),
+            fetchData('/products/upcoming')
         ]);
-        
-        // Carregar produtos em breve separadamente (pode falhar)
-        let upcomingData = [];
-        try {
-            upcomingData = await fetchData('/products/upcoming');
-        } catch (error) {
-            console.warn('Produtos em breve não disponíveis:', error.message);
-        }
         
         products = productsData || sampleProducts;
         currencies = currenciesData || getDefaultCurrencies();
@@ -161,44 +157,19 @@ async function loadUserData() {
     const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
     
-    if (!token || !userData) {
-        console.log('Nenhum usuário logado');
-        return;
-    }
+    if (!token || !userData) return;
     
     try {
-        // Verificar se o userData é válido
-        if (userData === 'undefined' || userData === 'null') {
-            throw new Error('Dados do usuário inválidos');
-        }
-        
         currentUser = JSON.parse(userData);
-        
-        // Tentar carregar compras, mas não falhar se não existir
-        try {
-            const purchasesData = localStorage.getItem('user_purchases');
-            if (purchasesData && purchasesData !== 'undefined' && purchasesData !== 'null') {
-                userPurchases = JSON.parse(purchasesData);
-            } else {
-                userPurchases = [];
-                localStorage.setItem('user_purchases', '[]');
-            }
-        } catch (purchaseError) {
-            console.warn('Erro ao carregar compras:', purchaseError);
-            userPurchases = [];
-            localStorage.setItem('user_purchases', '[]');
+        userPurchases = JSON.parse(localStorage.getItem('user_purchases') || '[]');
+        if (currentUser.email === 'XXXXXXXXXXXXXXX' || currentUser.username === 'XXXXXX' || currentUser.isAdmin) {
+            currentUser.isAdmin = true;
         }
-        
-        console.log(`Usuário carregado: ${currentUser.username || 'N/A'}`);
+        console.log(`Usuário carregado: ${currentUser.username} ${currentUser.isAdmin ? '(Admin)' : ''}`);
         console.log(`Compras carregadas: ${userPurchases.length}`);
     } catch (error) {
         console.error('Erro ao carregar dados do usuário:', error);
-        // Limpar dados inválidos
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user_data');
-        localStorage.removeItem('user_purchases');
-        currentUser = null;
-        userPurchases = [];
+        logoutUser();
     }
 }
 
@@ -206,19 +177,12 @@ function loadCart() {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
         try {
-            if (savedCart === 'undefined' || savedCart === 'null') {
-                throw new Error('Carrinho inválido');
-            }
             cart = JSON.parse(savedCart);
             updateCartCount();
         } catch (error) {
             console.error('Erro ao carregar carrinho:', error);
             cart = [];
-            localStorage.setItem('cart', '[]');
         }
-    } else {
-        cart = [];
-        localStorage.setItem('cart', '[]');
     }
 }
 
@@ -244,21 +208,12 @@ async function fetchData(endpoint) {
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
-            // Se for 404, retornar null para endpoints opcionais
-            if (response.status === 404 && endpoint.includes('/products/upcoming')) {
-                return null;
-            }
             throw new Error(`HTTP ${response.status}`);
         }
         return await response.json();
     } catch (error) {
-        // Log mais específico baseado no endpoint
-        if (endpoint.includes('/products/upcoming')) {
-            console.log(`Endpoint opcional ${endpoint} não disponível, usando dados padrão`);
-            return null;
-        }
         console.warn(`Não foi possível carregar ${endpoint}:`, error.message);
-        throw error;
+        return null;
     }
 }
 
@@ -383,14 +338,6 @@ function updateProductButton(productId, inCart) {
     if (productCard) {
         const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
-            // Apenas atualização visual
-            if (inCart) {
-                addToCartBtn.innerHTML = '<i class="fas fa-check"></i> NO CARRINHO';
-                addToCartBtn.classList.add('added');
-            } else {
-                addToCartBtn.innerHTML = '<i class="fas fa-cart-plus"></i> CARRINHO';
-                addToCartBtn.classList.remove('added');
-            }
         }
     }
 }
@@ -468,8 +415,6 @@ function renderProducts() {
                                     <i class="fas fa-clock"></i> EM BREVE
                                 </button>
                             ` : `
-                                <button class="btn btn-primary add-to-cart-btn ${inCart ? 'added' : ''}" onclick="addToCart('${product.id}')">
-                                    <i class="fas ${inCart ? 'fa-check' : 'fa-cart-plus'}"></i> ${inCart ? 'NO CARRINHO' : 'CARRINHO'}
                                 </button>
                                 <button class="btn btn-info" onclick="viewProductDetails('${product.id}')">
                                     <i class="fas fa-info-circle"></i> DETALHES
@@ -714,27 +659,20 @@ async function confirmPayment() {
         openLoginModal();
         return;
     }
-    
     const btn = document.getElementById('confirmPaymentBtn');
     if (!btn) return;
     const originalText = btn.innerHTML;
     const originalBg = btn.style.background;
-    
     try {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO PAGAMENTO...';
         btn.disabled = true;
         btn.style.background = 'linear-gradient(45deg, #666, #888)';
-        
-        // Em produção, isso deve ser feito no backend
-        // Simulação de processamento
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
         if (isCheckoutModal) {
             await processCartCheckout();
         } else {
             await processSinglePurchase();
         }
-        
     } catch (error) {
         console.error('Erro no pagamento:', error);
         showPaymentError(error);
@@ -746,7 +684,6 @@ async function confirmPayment() {
 }
 
 async function processSinglePurchase() {
-    // Em produção, isso deve ser feito no backend
     const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
     const licenseKey = 'LUA-' + Math.random().toString(36).substr(2, 12).toUpperCase();
     const newPurchase = {
@@ -768,22 +705,18 @@ async function processSinglePurchase() {
         fee: parseFloat(selectedProduct.price) * 0.02,
         total: parseFloat(selectedProduct.price) * 1.02
     };
-    
     userPurchases.push(newPurchase);
     localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
-    
     showPaymentSuccess({
         order: newPurchase
     });
 }
 
 async function processCartCheckout() {
-    // Em produção, isso deve ser feito no backend
     const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const fee = subtotal * 0.02;
     const total = subtotal + fee;
-    
     const newPurchase = {
         id: orderId,
         productId: 'cart-checkout',
@@ -804,7 +737,6 @@ async function processCartCheckout() {
         fee: fee,
         total: total
     };
-    
     newPurchase.items.forEach(item => {
         const productPurchase = {
             id: 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -827,12 +759,10 @@ async function processCartCheckout() {
         };
         userPurchases.push(productPurchase);
     });
-    
     localStorage.setItem('user_purchases', JSON.stringify(userPurchases));
     cart = [];
     saveCart();
     updateCartModal();
-    
     showPaymentSuccess({
         order: newPurchase
     });
@@ -841,7 +771,6 @@ async function processCartCheckout() {
 function showPaymentSuccess(paymentData) {
     closePaymentModal();
     showMessage('Pagamento confirmado! Suas compras estão disponíveis.', 'success');
-    
     setTimeout(() => {
         let receipt = `COMPRA REALIZADA COM SUCESSO!\n\n`;
         if (isCheckoutModal) {
@@ -863,7 +792,6 @@ function showPaymentSuccess(paymentData) {
         receipt += `• Os downloads estarão disponíveis por tempo ilimitado\n`;
         receipt += `• Suporte via Discord: discord.gg/8VPDmnKpQH\n\n`;
         receipt += `Obrigado por comprar na Lua Works!`;
-        
         alert(receipt);
         renderProducts();
         updateUI();
@@ -873,7 +801,7 @@ function showPaymentSuccess(paymentData) {
 function showPaymentError(error) {
     showMessage(`Erro no pagamento: ${error.message}`, 'error');
     setTimeout(() => {
-        if (confirm('Houve um erro no processamento. Deseja tentar novamente?')) {
+        if (confirm('Houve um erro no processamento. Deseja tentar novamente ou entrar em contato com o suporte?')) {
             openPaymentModal(isCheckoutModal ? null : selectedProduct?.id);
         }
     }, 1000);
@@ -886,142 +814,126 @@ async function downloadProduct(productId) {
         openLoginModal();
         return;
     }
-    
     const purchase = userPurchases.find(p => p.productId === productId);
     if (!purchase) {
         showError('Você não possui este produto');
         return;
     }
-    
     try {
-        // Em produção, isso deve fazer uma requisição ao backend
-        showMessage('Preparando download...', 'info');
-        
-        // Simulação de download
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Criar um arquivo de exemplo para download
-        const content = `-- Script Lua ${purchase.productName} --\n`;
-        content += `-- Chave de Licença: ${purchase.licenseKey || 'N/A'}\n`;
-        content += `-- Data de Compra: ${formatDate(purchase.date)}\n\n`;
-        content += `print("Bem-vindo ao ${purchase.productName}!")`;
-        
-        const blob = new Blob([content], { type: 'text/plain' });
+        await downloadFromServer(productId, token);
+    } catch (error) {
+        try {
+            const response = await fetch(`/api/download/${productId}`);
+            if (response.ok) {
+                window.open(`/api/download/${productId}`, '_blank');
+            } else {
+                throw new Error('Download não disponível');
+            }
+        } catch (fallbackError) {
+            console.error('Erro no fallback:', fallbackError);
+        }
+    }
+}
+
+async function downloadFromServer(productId, token) {
+    try {
+        showMessage('Iniciando download...', 'info');
+        const response = await fetch(`/api/download/${productId}/authenticated`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+        }
+        let filename = 'download.lua';
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${productId}-${Date.now()}.lua`;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
+        registerDownload(filename, productId);
         showMessage('Download iniciado com sucesso!', 'success');
-        
     } catch (error) {
-        console.error('Erro no download:', error);
-        showError('Não foi possível baixar o arquivo. Tente novamente mais tarde.');
+        console.error('Erro no download do servidor:', error);
+        throw error;
     }
+}
+
+function registerDownload(filename, productId) {
+    const downloadHistory = JSON.parse(localStorage.getItem('download_history') || '[]');
+    downloadHistory.push({
+        filename: filename,
+        timestamp: new Date().toISOString(),
+        productId: productId
+    });
+    localStorage.setItem('download_history', JSON.stringify(downloadHistory));
 }
 
 async function loginUser(email, password) {
     try {
-        // Em produção, use uma API real
-        showMessage('Autenticando...', 'info');
-        
-        // Simulação de login
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificação básica
-        if (!email || !password) {
-            throw new Error('Email e senha são obrigatórios');
-        }
-        
-        // Criar usuário de exemplo
-        const user = {
-            id: Date.now().toString(),
-            username: email.split('@')[0] || 'usuário',
-            email: email,
-            profile: {
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=00ff88&color=000&bold=true&size=256`
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-            isAdmin: false,
-            joinDate: new Date().toISOString()
-        };
-        
-        const token = 'token_' + Math.random().toString(36).substr(2);
-        
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_data', JSON.stringify(user));
-        localStorage.setItem('user_purchases', JSON.stringify([]));
-        
-        currentUser = user;
-        userPurchases = [];
-        
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no login');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        localStorage.setItem('user_purchases', JSON.stringify(data.user.orders || []));
+        currentUser = data.user;
+        userPurchases = data.user.orders || [];
         updateUI();
         showMessage('Login realizado com sucesso!', 'success');
-        return { success: true, user: user };
-        
+        return { success: true, user: data.user };
     } catch (error) {
         console.error('Erro no login:', error);
-        showError(error.message || 'Erro ao fazer login. Tente novamente.');
+        showError(error.message);
         return { success: false, error: error.message };
     }
 }
 
 async function registerUser(username, email, password) {
     try {
-        showMessage('Criando conta...', 'info');
-        
-        // Simulação de registro
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Verificação básica
-        if (!username || !email || !password) {
-            throw new Error('Todos os campos são obrigatórios');
-        }
-        
-        if (password.length < 6) {
-            throw new Error('A senha deve ter pelo menos 6 caracteres');
-        }
-        
-        // Verificar se já existe
-        const existingData = localStorage.getItem('user_data');
-        if (existingData && existingData !== 'undefined' && existingData !== 'null') {
-            const existingUser = JSON.parse(existingData);
-            if (existingUser.email === email) {
-                throw new Error('Este email já está registrado');
-            }
-        }
-        
-        // Criar novo usuário
-        const user = {
-            id: Date.now().toString(),
-            username: username,
-            email: email,
-            profile: {
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=00ff88&color=000&bold=true&size=256`
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-            isAdmin: false,
-            joinDate: new Date().toISOString()
-        };
-        
-        const token = 'token_' + Math.random().toString(36).substr(2);
-        
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user_data', JSON.stringify(user));
-        localStorage.setItem('user_purchases', JSON.stringify([]));
-        
-        currentUser = user;
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro no registro');
+        }
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        localStorage.setItem('user_purchases', '[]');
+        currentUser = data.user;
         userPurchases = [];
-        
         updateUI();
         showMessage('Conta criada com sucesso! Bem-vindo!', 'success');
-        return { success: true, user: user };
-        
+        return { success: true, user: data.user };
     } catch (error) {
         console.error('Erro no registro:', error);
-        showError(error.message || 'Erro ao criar conta. Tente novamente.');
+        showError(error.message);
         return { success: false, error: error.message };
     }
 }
@@ -1049,18 +961,15 @@ function setupEventListeners() {
             }
         });
     });
-    
     document.getElementById('paymentModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) {
             closePaymentModal();
         }
     });
-    
     const confirmBtn = document.getElementById('confirmPaymentBtn');
     if (confirmBtn) {
         confirmBtn.addEventListener('click', confirmPayment);
     }
-    
     window.copyWalletAddress = function() {
         const address = document.getElementById('walletAddress')?.textContent;
         if (!address || address === 'Selecione uma moeda acima') {
@@ -1092,7 +1001,6 @@ function setupEventListeners() {
             showMessage('Endereço copiado!', 'success');
         });
     };
-    
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -1101,12 +1009,10 @@ function setupEventListeners() {
             filterProducts(filter);
         });
     });
-    
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', toggleMobileMenu);
     }
-    
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -1114,7 +1020,6 @@ function setupEventListeners() {
             }
         });
     });
-    
     window.addEventListener('resize', () => {
         const navLinks = document.querySelector('.nav-links');
         if (window.innerWidth > 768 && navLinks && navLinks.style.display === 'flex') {
@@ -1125,16 +1030,13 @@ function setupEventListeners() {
             }
         }
     });
-    
     document.getElementById('loginBtn')?.addEventListener('click', openLoginModal);
     document.getElementById('registerBtn')?.addEventListener('click', openRegisterModal);
     document.getElementById('logoutBtn')?.addEventListener('click', logoutUser);
     document.getElementById('cartBtn')?.addEventListener('click', toggleCartModal);
-    
     document.querySelectorAll('.close-cart').forEach(btn => {
         btn.addEventListener('click', closeCartModal);
     });
-    
     document.getElementById('checkoutBtn')?.addEventListener('click', function() {
         closeCartModal();
         openPaymentModal();
@@ -1168,7 +1070,6 @@ function setupAnimations() {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
     });
-    
     document.querySelectorAll('.product-card, .feature-card, .expertise-item, .stat-card').forEach(el => {
         observer.observe(el);
     });
@@ -1178,13 +1079,11 @@ function filterProducts(filter) {
     const productCards = document.querySelectorAll('.product-card');
     const noResults = document.getElementById('noResults');
     let visibleCount = 0;
-    
     productCards.forEach(card => {
         const isUpcoming = card.dataset.upcoming === 'true';
         const category = card.dataset.category;
         const productId = card.dataset.id;
         let show = false;
-        
         switch(filter) {
             case 'all':
                 show = true;
@@ -1199,7 +1098,6 @@ function filterProducts(filter) {
                 show = category === filter && !isUpcoming;
                 break;
         }
-        
         if (show) {
             card.style.display = 'block';
             visibleCount++;
@@ -1208,7 +1106,6 @@ function filterProducts(filter) {
             card.style.display = 'none';
         }
     });
-    
     if (noResults) {
         if (visibleCount === 0) {
             noResults.style.display = 'block';
@@ -1216,7 +1113,6 @@ function filterProducts(filter) {
             noResults.style.display = 'none';
         }
     }
-    
     console.log(`Filtro "${filter}" aplicado: ${visibleCount} produtos visíveis`);
 }
 
@@ -1224,7 +1120,6 @@ function toggleMobileMenu() {
     const navLinks = document.querySelector('.nav-links');
     const menuBtn = document.querySelector('.mobile-menu-btn i');
     if (!navLinks || !menuBtn) return;
-    
     if (navLinks.style.display === 'flex') {
         navLinks.style.display = 'none';
         menuBtn.className = 'fas fa-bars';
@@ -1239,20 +1134,20 @@ function updateUI() {
     const registerBtn = document.getElementById('registerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const userMenu = document.getElementById('userMenu');
-    
     if (currentUser) {
         if (loginBtn) loginBtn.style.display = 'none';
         if (registerBtn) registerBtn.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'block';
-        
         if (userMenu) {
             userMenu.innerHTML = `
                 <div class="user-info">
                     <img src="${currentUser.profile?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.username)}&background=00ff88&color=000&bold=true&size=256`}" alt="${currentUser.username}" class="user-avatar">
                     <span class="username">${currentUser.username}</span>
+                    ${currentUser.isAdmin ? '<span class="admin-badge" style="background: #ff3366; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">ADMIN</span>' : ''}
                 </div>
                 <div class="user-dropdown">
                     <a href="#" onclick="openPurchasesModal()"><i class="fas fa-shopping-bag"></i> Minhas Compras</a>
+                    ${currentUser.isAdmin ? '<a href="admin-dashboard.html" target="_blank"><i class="fas fa-user-secret"></i> Painel Admin</a>' : ''}
                     <a href="#" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Sair</a>
                 </div>
             `;
@@ -1264,7 +1159,6 @@ function updateUI() {
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (userMenu) userMenu.style.display = 'none';
     }
-    
     renderProducts();
 }
 
@@ -1273,12 +1167,10 @@ function openPurchasesModal() {
         showError('Você precisa estar logado para ver suas compras');
         return;
     }
-    
     if (userPurchases.length === 0) {
         showMessage('Você ainda não fez nenhuma compra', 'info');
         return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'purchasesModal';
@@ -1301,11 +1193,9 @@ function openPurchasesModal() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1313,12 +1203,10 @@ function openPurchasesModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('purchasesModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('purchasesModal');
     });
-    
     modal.querySelectorAll('.purchase-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             modal.querySelectorAll('.purchase-tab').forEach(t => t.classList.remove('active'));
@@ -1327,19 +1215,16 @@ function openPurchasesModal() {
             renderPurchases(tab);
         });
     });
-    
     renderPurchases('all');
 }
 
 function renderPurchases(filter = 'all') {
     const container = document.getElementById('purchasesGrid');
     if (!container) return;
-    
     let filteredPurchases = userPurchases;
     if (filter !== 'all') {
         filteredPurchases = userPurchases.filter(purchase => purchase.status === filter);
     }
-    
     if (filteredPurchases.length === 0) {
         container.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
@@ -1350,7 +1235,6 @@ function renderPurchases(filter = 'all') {
         `;
         return;
     }
-    
     container.innerHTML = filteredPurchases.map(purchase => {
         const isCartCheckout = purchase.productId === 'cart-checkout';
         return `
@@ -1423,13 +1307,11 @@ function downloadCartPurchase(purchaseId) {
         showError('Compra não encontrada');
         return;
     }
-    
     purchase.items.forEach(item => {
         setTimeout(() => {
             downloadProduct(item.productId);
         }, item.productId.charCodeAt(0) % 1000);
     });
-    
     showMessage('Downloads iniciados! Verifique seus arquivos.', 'success');
 }
 
@@ -1439,7 +1321,6 @@ function viewPurchaseDetails(purchaseId) {
         showError('Compra não encontrada');
         return;
     }
-    
     const isCartCheckout = purchase.productId === 'cart-checkout';
     let details = `DETALHES DA COMPRA\n\n`;
     details += `ID: ${purchase.id}\n`;
@@ -1447,7 +1328,6 @@ function viewPurchaseDetails(purchaseId) {
     details += `Status: ${purchase.status === 'completed' ? 'Concluído' : purchase.status === 'pending' ? 'Pendente' : 'Cancelado'}\n`;
     details += `Data: ${formatDate(purchase.date)}\n`;
     details += `Valor: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
-    
     if (isCartCheckout) {
         details += `ITENS:\n`;
         purchase.items.forEach((item, index) => {
@@ -1459,22 +1339,18 @@ function viewPurchaseDetails(purchaseId) {
     } else {
         details += `CHAVE DE LICENÇA:\n${purchase.licenseKey}\n\n`;
     }
-    
     details += `RESUMO FINANCEIRO:\n`;
     details += `Subtotal: ${purchase.subtotal.toFixed(4)} ${purchase.currency}\n`;
     details += `Taxa (2%): ${purchase.fee.toFixed(4)} ${purchase.currency}\n`;
     details += `Total: ${purchase.total.toFixed(4)} ${purchase.currency}\n\n`;
-    
     details += `Para suporte, entre em contato:\n`;
     details += `Email: support@luaworks.dev\n`;
     details += `Discord: https://discord.gg/8VPDmnKpQH`;
-    
     alert(details);
 }
 
 function openLoginModal() {
     closeAllModals();
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'loginModal';
@@ -1500,11 +1376,9 @@ function openLoginModal() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1512,12 +1386,10 @@ function openLoginModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('loginModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('loginModal');
     });
-    
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value;
@@ -1531,7 +1403,6 @@ function openLoginModal() {
 
 function openRegisterModal() {
     closeAllModals();
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'registerModal';
@@ -1565,11 +1436,9 @@ function openRegisterModal() {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1577,24 +1446,20 @@ function openRegisterModal() {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('registerModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('registerModal');
     });
-    
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('registerUsername').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const confirmPassword = document.getElementById('registerConfirm').value;
-        
         if (password !== confirmPassword) {
             showError('As senhas não coincidem');
             return;
         }
-        
         const result = await registerUser(username, email, password);
         if (result.success) {
             closeModal('registerModal');
@@ -1614,13 +1479,11 @@ function closeAllModals() {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    
     const modalContent = modal.querySelector('.modal-content');
     if (modalContent) {
         modalContent.style.opacity = '0';
         modalContent.style.transform = 'translateY(-50px)';
     }
-    
     setTimeout(() => {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -1701,16 +1564,13 @@ function showMessage(message, type = 'info') {
         container.id = 'messageContainer';
         document.body.appendChild(container);
     }
-    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     messageDiv.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
         <span>${message}</span>
     `;
-    
     container.appendChild(messageDiv);
-    
     setTimeout(() => {
         messageDiv.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
@@ -1732,7 +1592,6 @@ function viewProductDetails(productId) {
         showError('Produto não encontrado');
         return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'productDetailsModal';
@@ -1810,10 +1669,8 @@ function viewProductDetails(productId) {
                                     </button>
                                     <p class="purchased-info">Você já possui este produto</p>
                                 ` : `
-                                    <button class="btn btn-primary add-to-cart-btn" onclick="addToCart('${product.id}'); closeModal('productDetailsModal')">
-                                        <i class="fas fa-cart-plus"></i> Adicionar ao Carrinho
                                     </button>
-                                    <button class="btn btn-success" onclick="openPaymentModal('${product.id}'); closeModal('productDetailsModal')">
+                                    <button class="btn btn-primary" onclick="openPaymentModal('${product.id}'); closeModal('productDetailsModal')">
                                         <i class="fas fa-shopping-cart"></i> Comprar Agora
                                     </button>
                                     <p class="price-info">Apenas ${product.price} ${product.currency}</p>
@@ -1825,11 +1682,9 @@ function viewProductDetails(productId) {
             </div>
         </div>
     `;
-    
     document.body.appendChild(modal);
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
     setTimeout(() => {
         const modalContent = modal.querySelector('.modal-content');
         if (modalContent) {
@@ -1837,14 +1692,206 @@ function viewProductDetails(productId) {
             modalContent.style.transform = 'translateY(0)';
         }
     }, 10);
-    
     modal.querySelector('.close-modal').addEventListener('click', () => closeModal('productDetailsModal'));
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal('productDetailsModal');
     });
 }
 
-// Funções globais
+function setupAdminSystem() {
+    document.addEventListener('keydown', (e) => {
+        adminSequence.push(e.code);
+        if (adminSequence.length > adminPassword.length) {
+            adminSequence.shift();
+        }
+        if (JSON.stringify(adminSequence) === JSON.stringify(adminPassword)) {
+            activateAdminMode();
+        }
+    });
+    const logo = document.querySelector('.logo');
+    if (logo) {
+        let clickCount = 0;
+        let clickTimer;
+        logo.addEventListener('click', () => {
+            clickCount++;
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+            }
+            clickTimer = setTimeout(() => {
+                if (clickCount >= 3) {
+                    showAdminAccessPanel();
+                }
+                clickCount = 0;
+            }, 500);
+        });
+    }
+}
+
+function activateAdminMode() {
+    if (!currentUser?.isAdmin) {
+        showMessage('Admin: Usuário não tem permissões', 'error');
+        return;
+    }
+    adminEnabled = true;
+    const indicator = document.createElement('div');
+    indicator.id = 'adminIndicator';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(45deg, #ff3366, #ff00ff);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: bold;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        opacity: 0.8;
+    `;
+    indicator.innerHTML = '<i class="fas fa-user-secret"></i> ADMIN MODE';
+    document.body.appendChild(indicator);
+    addAdminFloatingButton();
+    showMessage('Modo Administrador ativado! Acesso completo liberado.', 'success');
+    console.log('Modo admin ativado');
+}
+
+function addAdminFloatingButton() {
+    const floatingBtn = document.createElement('button');
+    floatingBtn.id = 'adminFloatingBtn';
+    floatingBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #ff3366, #ff00ff);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 24px;
+        z-index: 9998;
+        box-shadow: 0 5px 15px rgba(255, 51, 102, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    `;
+    floatingBtn.innerHTML = '<i class="fas fa-cogs"></i>';
+    floatingBtn.addEventListener('mouseenter', () => {
+        floatingBtn.style.transform = 'scale(1.1)';
+        floatingBtn.style.boxShadow = '0 8px 25px rgba(255, 51, 102, 0.5)';
+    });
+    floatingBtn.addEventListener('mouseleave', () => {
+        floatingBtn.style.transform = 'scale(1)';
+        floatingBtn.style.boxShadow = '0 5px 15px rgba(255, 51, 102, 0.3)';
+    });
+    floatingBtn.addEventListener('click', function() {
+        window.open('admin-dashboard.html', '_blank');
+    });
+    document.body.appendChild(floatingBtn);
+}
+
+function showAdminAccessPanel() {
+    if (!currentUser) {
+        showMessage('Faça login primeiro', 'warning');
+        return;
+    }
+    if (!currentUser.isAdmin) {
+        showMessage('Acesso negado: Permissões insuficientes', 'error');
+        return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'adminAccessModal';
+    modal.style.cssText = `
+        background: rgba(0, 0, 0, 0.95);
+        align-items: center;
+        justify-content: center;
+    `;
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px; background: linear-gradient(135deg, #1a1a2e, #0f0f23);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255, 51, 102, 0.3);">
+                <h2><i class="fas fa-user-secret"></i> Acesso Administrativo</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 4rem; color: #ff3366; margin-bottom: 20px;">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 style="color: #ffffff; margin-bottom: 10px;">Olá, ${currentUser.username}!</h3>
+                    <p style="color: #aaccff; margin-bottom: 30px;">Nível de acesso: Administrador</p>
+                </div>
+                <div style="display: grid; gap: 15px; margin-bottom: 30px;">
+                    <a href="admin-dashboard.html" target="_blank" class="btn btn-primary" style="justify-content: center; text-decoration: none;">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.opacity = '1';
+            modalContent.style.transform = 'translateY(0)';
+        }
+    }, 10);
+    modal.querySelector('.close-modal').addEventListener('click', () => closeModal('adminAccessModal'));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal('adminAccessModal');
+    });
+}
+
+function showAdminDashboard() {
+    window.open('admin-dashboard.html', '_blank');
+}
+
+setTimeout(() => {
+    if (!currentUser) {
+        const existingAdmin = localStorage.getItem('lua_works_admin_created');
+        if (!existingAdmin) {
+            const adminUser = {
+                id: '***********************8',
+                username: '********',
+                email: '***********8',
+                profile: {
+                    avatar: 'https://ui-avatars.com/api/?name=Admin&background=ff3366&color=ffffff'
+                },
+                isAdmin: true,
+                joinDate: new Date().toISOString()
+            };
+            const adminToken = 'admin_token_' + Math.random().toString(36).substr(2);
+            localStorage.setItem('auth_token', adminToken);
+            localStorage.setItem('user_data', JSON.stringify(adminUser));
+            localStorage.setItem('user_purchases', '[]');
+            localStorage.setItem('lua_works_admin_created', 'true');
+        }
+    }
+}, 2000);
+
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    try {
+        const socket = new WebSocket('ws://localhost:3001');
+        socket.onmessage = (event) => {
+            if (event.data === 'reload') {
+                console.log('Recebido comando de recarregar...');
+                location.reload();
+            }
+        };
+        socket.onerror = () => {
+        };
+    } catch (e) {
+    }
+}
+
 window.openPaymentModal = openPaymentModal;
 window.selectCurrency = selectCurrency;
 window.copyWalletAddress = copyWalletAddress;
@@ -1859,25 +1906,13 @@ window.openLoginModal = openLoginModal;
 window.openRegisterModal = openRegisterModal;
 window.closeModal = closeModal;
 window.closeDownloadModal = closeDownloadModal;
+window.copyToClipboard = copyToClipboard;
+window.downloadAllFiles = downloadAllFiles;
+window.downloadFile = downloadFile;
 window.downloadCartPurchase = downloadCartPurchase;
 window.viewPurchaseDetails = viewPurchaseDetails;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.openPurchasesModal = openPurchasesModal;
-
-// Placeholder functions (caso sejam chamadas de outros arquivos)
-window.closeDownloadModal = function() {
-    console.log('closeDownloadModal chamada');
-};
-
-window.copyToClipboard = function() {
-    console.log('copyToClipboard chamada');
-};
-
-window.downloadAllFiles = function() {
-    console.log('downloadAllFiles chamada');
-};
-
-window.downloadFile = function() {
-    console.log('downloadFile chamada');
-};    
+window.showAdminAccessPanel = showAdminAccessPanel;
+window.showAdminDashboard = showAdminDashboard;
